@@ -37,10 +37,17 @@ const TabPanel: React.FC<TabPanelProps> = ({ children, value, index, ...other })
       hidden={value !== index}
       id={`patient-tabpanel-${index}`}
       aria-labelledby={`patient-tab-${index}`}
+      style={{ width: '100%' }}
       {...other}
     >
       {value === index && (
-        <Box sx={{ p: 3 }}>
+        <Box sx={{ 
+          p: 3, 
+          width: '100%', 
+          boxSizing: 'border-box',
+          display: 'flex',
+          flexDirection: 'column'
+        }}>
           {children}
         </Box>
       )}
@@ -188,7 +195,7 @@ export const PatientDetail: React.FC = () => {
                 {/* Add Vital Signs Form */}
                 <VitalSignForm patientId={patientId} onVitalSignAdded={handleVitalSignAdded} />
                 
-                <Card>
+                <Card sx={{ width: '100%' }}>
                   <CardHeader title="Anesthesia Monitoring" />
                   <Divider />
                   <CardContent sx={{ 
@@ -209,7 +216,7 @@ export const PatientDetail: React.FC = () => {
               </TabPanel>
               
               <TabPanel value={activeTab} index={1}>
-                <Card>
+                <Card sx={{ width: '100%' }}>
                   <CardHeader 
                     title="Medications" 
                     action={
@@ -223,7 +230,14 @@ export const PatientDetail: React.FC = () => {
                     }
                   />
                   <Divider />
-                  <CardContent>
+                  <CardContent sx={{
+                    p: 2,
+                    width: '100%',
+                    display: 'flex',
+                    "& .MuiBox-root": {
+                      width: '100%'
+                    }
+                  }}>
                     {medications.length > 0 ? (
                       <MedicationList medications={medications} patientId={patientId} />
                     ) : (
@@ -234,7 +248,7 @@ export const PatientDetail: React.FC = () => {
               </TabPanel>
               
               <TabPanel value={activeTab} index={2}>
-                <Card>
+                <Card sx={{ width: '100%' }}>
                   <CardHeader 
                     title="Patient History" 
                     action={
@@ -248,7 +262,14 @@ export const PatientDetail: React.FC = () => {
                     }
                   />
                   <Divider />
-                  <CardContent>
+                  <CardContent sx={{
+                    p: 2,
+                    width: '100%',
+                    display: 'flex',
+                    "& .MuiBox-root": {
+                      width: '100%'
+                    }
+                  }}>
                     {history.length > 0 ? (
                       <PatientHistoryList history={history} />
                     ) : (
