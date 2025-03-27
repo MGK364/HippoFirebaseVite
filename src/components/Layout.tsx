@@ -1,9 +1,7 @@
 import React, { useState } from 'react';
 import { 
   AppBar, 
-  Box, 
-  CssBaseline, 
-  Divider, 
+  Toolbar, 
   Drawer, 
   IconButton, 
   List, 
@@ -11,8 +9,8 @@ import {
   ListItemButton, 
   ListItemIcon, 
   ListItemText, 
-  Toolbar, 
   Typography,
+  Divider,
   useMediaQuery,
   useTheme
 } from '@mui/material';
@@ -100,13 +98,14 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
   );
 
   return (
-    <Box sx={{ display: 'flex' }}>
-      <CssBaseline />
+    <div style={{ display: 'flex', height: '100vh', width: '100vw', overflow: 'hidden' }}>
+      {/* App Bar */}
       <AppBar
         position="fixed"
         sx={{
           width: { sm: `calc(100% - ${drawerWidth}px)` },
           ml: { sm: `${drawerWidth}px` },
+          zIndex: (theme) => theme.zIndex.drawer + 1
         }}
       >
         <Toolbar>
@@ -124,50 +123,44 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
           </Typography>
         </Toolbar>
       </AppBar>
-      <Box
-        component="nav"
-        sx={{ width: { sm: drawerWidth }, flexShrink: { sm: 0 } }}
-      >
-        <Drawer
-          variant="temporary"
-          open={mobileOpen}
-          onClose={handleDrawerToggle}
-          ModalProps={{
-            keepMounted: true, // Better open performance on mobile
-          }}
-          sx={{
-            display: { xs: 'block', sm: 'none' },
-            '& .MuiDrawer-paper': { boxSizing: 'border-box', width: drawerWidth },
-          }}
-        >
-          {drawer}
-        </Drawer>
-        <Drawer
-          variant="permanent"
-          sx={{
-            display: { xs: 'none', sm: 'block' },
-            '& .MuiDrawer-paper': { boxSizing: 'border-box', width: drawerWidth },
-          }}
-          open
-        >
-          {drawer}
-        </Drawer>
-      </Box>
-      <Box
-        component="main"
-        sx={{ 
-          flexGrow: 1, 
-          p: 3, 
-          width: { sm: `calc(100% - ${drawerWidth}px)` },
-          maxWidth: '100%',
-          mt: '64px', // To account for the AppBar height
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'stretch'
+      
+      {/* Sidebar */}
+      <Drawer
+        variant="temporary"
+        open={mobileOpen}
+        onClose={handleDrawerToggle}
+        ModalProps={{ keepMounted: true }}
+        sx={{
+          display: { xs: 'block', sm: 'none' },
+          '& .MuiDrawer-paper': { width: drawerWidth, boxSizing: 'border-box' },
         }}
       >
+        {drawer}
+      </Drawer>
+      
+      <Drawer
+        variant="permanent"
+        sx={{
+          display: { xs: 'none', sm: 'block' },
+          width: drawerWidth,
+          flexShrink: 0,
+          '& .MuiDrawer-paper': { width: drawerWidth, boxSizing: 'border-box' },
+        }}
+        open
+      >
+        {drawer}
+      </Drawer>
+      
+      {/* Main content */}
+      <div style={{ 
+        flexGrow: 1, 
+        width: '100%', 
+        padding: '24px', 
+        marginTop: '64px',
+        overflow: 'auto'
+      }}>
         {children}
-      </Box>
-    </Box>
+      </div>
+    </div>
   );
 }; 

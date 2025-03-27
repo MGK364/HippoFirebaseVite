@@ -1,5 +1,5 @@
 import React, { useEffect, useRef } from 'react';
-import { Box, Typography, useTheme } from '@mui/material';
+import { Typography, useTheme } from '@mui/material';
 import { Line } from 'react-chartjs-2';
 import { VitalSign } from '../types';
 import {
@@ -33,7 +33,7 @@ interface VitalSignsChartProps {
 
 export const VitalSignsChart: React.FC<VitalSignsChartProps> = ({ vitalSigns }) => {
   const theme = useTheme();
-  const containerRef = useRef<HTMLDivElement>(null);
+  const chartContainer = useRef<HTMLDivElement>(null);
   const chartInstance = useRef<ChartJS<'line'>>(null);
   
   // Function to format timestamps
@@ -145,21 +145,9 @@ export const VitalSignsChart: React.FC<VitalSignsChartProps> = ({ vitalSigns }) 
     ],
   };
   
-  // Set chart options
   const chartOptions: ChartOptions<'line'> = {
     responsive: true,
     maintainAspectRatio: false,
-    resizeDelay: 100,
-    onResize: (chart, size) => {
-      if (containerRef.current) {
-        const width = containerRef.current.offsetWidth;
-        chart.canvas.style.width = `${width}px`;
-      }
-    },
-    interaction: {
-      mode: 'index',
-      intersect: false,
-    },
     plugins: {
       legend: {
         position: 'top',
@@ -167,77 +155,43 @@ export const VitalSignsChart: React.FC<VitalSignsChartProps> = ({ vitalSigns }) 
         labels: {
           boxWidth: 15,
           usePointStyle: true,
-          padding: 8,
-          font: {
-            size: 11
-          }
         },
       },
       tooltip: {
-        enabled: true,
-        intersect: false,
         mode: 'index',
+        intersect: false,
       },
     },
     scales: {
       x: {
-        grid: {
-          display: true,
-          color: theme.palette.divider,
-        },
         ticks: {
           maxRotation: 45,
-          minRotation: 0,
-          font: {
-            size: 10
-          },
           autoSkip: true,
           maxTicksLimit: 10
         },
       },
       temperature: {
         type: 'linear',
-        display: true,
         position: 'left',
         title: {
           display: true,
           text: 'Temperature (°C)',
-          font: {
-            size: 10
-          }
         },
         min: 35,
         max: 42,
-        grid: {
-          color: theme.palette.divider,
-        },
-        ticks: {
-          font: {
-            size: 10
-          }
-        }
       },
       pulse: {
         type: 'linear',
-        display: true,
         position: 'right',
         title: {
           display: true,
           text: 'Heart Rate (bpm)',
-          font: {
-            size: 10
-          }
         },
         min: 40,
         max: 200,
         grid: {
           drawOnChartArea: false,
         },
-        ticks: {
-          font: {
-            size: 10
-          }
-        }
       },
       respiration: {
         type: 'linear',
@@ -246,129 +200,77 @@ export const VitalSignsChart: React.FC<VitalSignsChartProps> = ({ vitalSigns }) 
         title: {
           display: true,
           text: 'Respiratory Rate (bpm)',
-          font: {
-            size: 10
-          }
         },
         min: 0,
         max: 60,
-        ticks: {
-          font: {
-            size: 10
-          }
-        }
       },
       bloodPressure: {
         type: 'linear',
-        display: true,
         position: 'right',
         title: {
           display: true,
           text: 'Blood Pressure (mmHg)',
-          font: {
-            size: 10
-          }
         },
         min: 0,
         max: 200,
         grid: {
           drawOnChartArea: false,
         },
-        ticks: {
-          font: {
-            size: 10
-          }
-        }
       },
       saturation: {
         type: 'linear',
-        display: true,
         position: 'left',
         title: {
           display: true,
           text: 'SpO2 (%)',
-          font: {
-            size: 10
-          }
         },
         min: 80,
         max: 100,
         grid: {
           drawOnChartArea: false,
         },
-        ticks: {
-          font: {
-            size: 10
-          }
-        }
       },
       etCO2: {
         type: 'linear',
-        display: true,
         position: 'left',
         title: {
           display: true,
           text: 'ETCO2 (mmHg)',
-          font: {
-            size: 10
-          }
         },
         min: 20,
         max: 80,
         grid: {
           drawOnChartArea: false,
         },
-        ticks: {
-          font: {
-            size: 10
-          }
-        }
       },
       score: {
         type: 'linear',
-        display: true,
         position: 'right',
         title: {
           display: true,
           text: 'Anesthetic Depth (1-5)',
-          font: {
-            size: 10
-          }
         },
         min: 0,
         max: 5,
         grid: {
           drawOnChartArea: false,
         },
-        ticks: {
-          font: {
-            size: 10
-          }
-        }
-      },
-    },
-    animation: {
-      duration: 300,
-    },
-    elements: {
-      point: {
-        radius: 3,
-        hoverRadius: 7,
-      },
-      line: {
-        borderWidth: 2,
       },
     },
   };
   
-  // Handle window resize
+  // Resize handler for chart responsiveness
   useEffect(() => {
     const handleResize = () => {
       if (chartInstance.current) {
         chartInstance.current.resize();
       }
     };
+
+    // Initial resize after render
+    setTimeout(handleResize, 100);
     
+    // Listen for window resize events
     window.addEventListener('resize', handleResize);
     
     return () => {
@@ -377,21 +279,23 @@ export const VitalSignsChart: React.FC<VitalSignsChartProps> = ({ vitalSigns }) 
   }, []);
 
   return (
-    <div style={{ width: '100%' }}>
-      <Typography variant="h6" gutterBottom>
+    <div style={{ width: '100%', padding: '0', margin: '0' }}>
+      <Typography variant="h6" style={{ marginBottom: '16px' }}>
         Vital Signs Chart
       </Typography>
 
       {vitalSigns.length === 0 ? (
-        <Typography variant="body1" color="text.secondary" sx={{ py: 4, textAlign: 'center' }}>
+        <Typography style={{ textAlign: 'center', padding: '32px 0' }}>
           No vital signs data available yet.
         </Typography>
       ) : (
-        <div
-          ref={containerRef}
-          style={{ 
+        <div 
+          ref={chartContainer} 
+          style={{
             width: '100%',
             height: '500px',
+            padding: '0',
+            margin: '0',
             position: 'relative'
           }}
         >

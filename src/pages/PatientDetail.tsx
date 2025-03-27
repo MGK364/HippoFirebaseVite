@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, Navigate } from 'react-router-dom';
 import {
-  Box,
   Typography,
   Paper,
   CircularProgress,
@@ -10,11 +9,9 @@ import {
   Divider,
   Chip,
   Button,
-  Stack,
+  IconButton,
   Card,
-  CardHeader,
-  CardContent,
-  IconButton
+  CardHeader
 } from '@mui/material';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import { getPatient, getVitalSigns, getMedications, getPatientHistory } from '../services/patients';
@@ -37,14 +34,11 @@ const TabPanel: React.FC<TabPanelProps> = ({ children, value, index, ...other })
       hidden={value !== index}
       id={`patient-tabpanel-${index}`}
       aria-labelledby={`patient-tab-${index}`}
-      style={{ width: '100%' }}
       {...other}
+      style={{ width: '100%' }}
     >
       {value === index && (
-        <div style={{ 
-          padding: 24, 
-          width: '100%'
-        }}>
+        <div style={{ padding: '24px', width: '100%' }}>
           {children}
         </div>
       )}
@@ -123,155 +117,145 @@ export const PatientDetail: React.FC = () => {
   }
 
   return (
-    <Box sx={{ 
-      width: '100%', 
-      maxWidth: '100%',
-      display: 'flex',
-      flexDirection: 'column',
-      flex: 1
-    }}>
-      <Box sx={{ mb: 3, display: 'flex', alignItems: 'center' }}>
-        <IconButton onClick={handleBackClick} sx={{ mr: 1 }}>
+    <div style={{ width: '100%' }}>
+      <div style={{ marginBottom: '24px', display: 'flex', alignItems: 'center' }}>
+        <IconButton onClick={handleBackClick} style={{ marginRight: '8px' }}>
           <ArrowBackIcon />
         </IconButton>
         <Typography variant="h4" component="h1">
           Patient Details
         </Typography>
-      </Box>
+      </div>
 
       {loading ? (
-        <Box sx={{ display: 'flex', justifyContent: 'center', mt: 4 }}>
+        <div style={{ display: 'flex', justifyContent: 'center', marginTop: '32px' }}>
           <CircularProgress />
-        </Box>
+        </div>
       ) : error ? (
-        <Typography color="error" sx={{ mt: 2 }}>
+        <Typography color="error" style={{ marginTop: '16px' }}>
           {error}
         </Typography>
       ) : patient ? (
         <>
-          <Paper sx={{ mb: 3, p: 3, width: '100%' }}>
-            <Stack spacing={2}>
-              <Box>
-                <Typography variant="h5" component="h2">
-                  {patient.name}
-                </Typography>
-                <Box sx={{ display: 'flex', gap: 1, mt: 1 }}>
-                  <Chip 
-                    label={patient.status} 
-                    color={patient.status === 'Active' ? 'success' : 'default'}
-                  />
-                  <Chip label={patient.species} color="primary" />
-                </Box>
-              </Box>
-              <Box>
-                <Typography variant="body1">
-                  <strong>Client ID:</strong> {patient.clientId}
-                </Typography>
-                <Typography variant="body1">
-                  <strong>Breed:</strong> {patient.breed}
-                </Typography>
-                <Typography variant="body1">
-                  <strong>Age:</strong> {patient.age}
-                </Typography>
-                <Typography variant="body1">
-                  <strong>Weight:</strong> {patient.weight}
-                </Typography>
-              </Box>
-            </Stack>
+          <Paper style={{ marginBottom: '24px', padding: '24px', width: '100%' }}>
+            <div style={{ marginBottom: '16px' }}>
+              <Typography variant="h5" component="h2">
+                {patient.name}
+              </Typography>
+              <div style={{ display: 'flex', gap: '8px', marginTop: '8px' }}>
+                <Chip 
+                  label={patient.status} 
+                  color={patient.status === 'Active' ? 'success' : 'default'}
+                />
+                <Chip label={patient.species} color="primary" />
+              </div>
+            </div>
+            <div>
+              <Typography variant="body1" style={{ marginBottom: '8px' }}>
+                <strong>Client ID:</strong> {patient.clientId}
+              </Typography>
+              <Typography variant="body1" style={{ marginBottom: '8px' }}>
+                <strong>Breed:</strong> {patient.breed}
+              </Typography>
+              <Typography variant="body1" style={{ marginBottom: '8px' }}>
+                <strong>Age:</strong> {patient.age}
+              </Typography>
+              <Typography variant="body1">
+                <strong>Weight:</strong> {patient.weight}
+              </Typography>
+            </div>
           </Paper>
 
-          <Box sx={{ width: '100%', display: 'flex', flexDirection: 'column' }}>
-            <Paper sx={{ mb: 3, width: '100%' }}>
-              <Tabs 
-                value={activeTab} 
-                onChange={handleTabChange} 
-                variant="fullWidth"
-                textColor="primary"
-                indicatorColor="primary"
-              >
-                <Tab label="Vital Signs" />
-                <Tab label="Medications" />
-                <Tab label="Patient History" />
-              </Tabs>
+          <Paper style={{ marginBottom: '24px', width: '100%' }}>
+            <Tabs 
+              value={activeTab} 
+              onChange={handleTabChange} 
+              variant="fullWidth"
+              textColor="primary"
+              indicatorColor="primary"
+            >
+              <Tab label="Vital Signs" />
+              <Tab label="Medications" />
+              <Tab label="Patient History" />
+            </Tabs>
+            
+            <TabPanel value={activeTab} index={0}>
+              {/* Add Vital Signs Form */}
+              <VitalSignForm patientId={patientId} onVitalSignAdded={handleVitalSignAdded} />
               
-              <TabPanel value={activeTab} index={0}>
-                {/* Add Vital Signs Form */}
-                <VitalSignForm patientId={patientId} onVitalSignAdded={handleVitalSignAdded} />
-                
-                <div style={{ width: '100%' }}>
-                  <Card>
-                    <CardHeader title="Anesthesia Monitoring" />
-                    <Divider />
-                    <div style={{ width: '100%', padding: 0 }}>
-                      {vitalSigns.length > 0 ? (
-                        <VitalSignsChart vitalSigns={vitalSigns} />
-                      ) : (
-                        <Typography sx={{ p: 2 }}>No vital signs data available</Typography>
-                      )}
-                    </div>
-                  </Card>
-                </div>
-              </TabPanel>
-              
-              <TabPanel value={activeTab} index={1}>
-                <div style={{ width: '100%' }}>
-                  <Card>
-                    <CardHeader 
-                      title="Medications" 
-                      action={
-                        <Button 
-                          variant="contained" 
-                          size="small"
-                          onClick={() => navigate(`/patients/${patientId}/medications/new`)}
-                        >
-                          Add Medication
-                        </Button>
-                      }
-                    />
-                    <Divider />
-                    <div style={{ width: '100%', padding: 16 }}>
-                      {medications.length > 0 ? (
-                        <MedicationList medications={medications} patientId={patientId} />
-                      ) : (
-                        <Typography>No medications data available</Typography>
-                      )}
-                    </div>
-                  </Card>
-                </div>
-              </TabPanel>
-              
-              <TabPanel value={activeTab} index={2}>
-                <div style={{ width: '100%' }}>
-                  <Card>
-                    <CardHeader 
-                      title="Patient History" 
-                      action={
-                        <Button 
-                          variant="contained" 
-                          size="small"
-                          onClick={() => navigate(`/patients/${patientId}/history/new`)}
-                        >
-                          Add History Entry
-                        </Button>
-                      }
-                    />
-                    <Divider />
-                    <div style={{ width: '100%', padding: 16 }}>
-                      {history.length > 0 ? (
-                        <PatientHistoryList history={history} />
-                      ) : (
-                        <Typography>No history data available</Typography>
-                      )}
-                    </div>
-                  </Card>
-                </div>
-              </TabPanel>
-            </Paper>
-          </Box>
+              <div style={{ width: '100%', marginTop: '24px' }}>
+                <Card>
+                  <CardHeader title="Anesthesia Monitoring" />
+                  <Divider />
+                  <div style={{ width: '100%' }}>
+                    {vitalSigns.length > 0 ? (
+                      <VitalSignsChart vitalSigns={vitalSigns} />
+                    ) : (
+                      <Typography style={{ padding: '16px' }}>No vital signs data available</Typography>
+                    )}
+                  </div>
+                </Card>
+              </div>
+            </TabPanel>
+            
+            <TabPanel value={activeTab} index={1}>
+              <div style={{ width: '100%' }}>
+                <Card>
+                  <CardHeader 
+                    title="Medications" 
+                    action={
+                      <Button 
+                        variant="contained" 
+                        size="small"
+                        onClick={() => navigate(`/patients/${patientId}/medications/new`)}
+                      >
+                        Add Medication
+                      </Button>
+                    }
+                  />
+                  <Divider />
+                  <div style={{ width: '100%', padding: '16px' }}>
+                    {medications.length > 0 ? (
+                      <MedicationList medications={medications} patientId={patientId} />
+                    ) : (
+                      <Typography>No medications data available</Typography>
+                    )}
+                  </div>
+                </Card>
+              </div>
+            </TabPanel>
+            
+            <TabPanel value={activeTab} index={2}>
+              <div style={{ width: '100%' }}>
+                <Card>
+                  <CardHeader 
+                    title="Patient History" 
+                    action={
+                      <Button 
+                        variant="contained" 
+                        size="small"
+                        onClick={() => navigate(`/patients/${patientId}/history/new`)}
+                      >
+                        Add History Entry
+                      </Button>
+                    }
+                  />
+                  <Divider />
+                  <div style={{ width: '100%', padding: '16px' }}>
+                    {history.length > 0 ? (
+                      <PatientHistoryList history={history} />
+                    ) : (
+                      <Typography>No history data available</Typography>
+                    )}
+                  </div>
+                </Card>
+              </div>
+            </TabPanel>
+          </Paper>
         </>
       ) : (
         <Typography>Patient not found</Typography>
       )}
-    </Box>
+    </div>
   );
 }; 
