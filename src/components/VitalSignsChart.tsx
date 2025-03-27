@@ -1,6 +1,9 @@
-import React, { useEffect, useRef } from 'react';
-import { Typography, useTheme } from '@mui/material';
+import React, { useEffect, useRef, useState } from 'react';
+import { Typography, useTheme, IconButton, Box } from '@mui/material';
 import { Line } from 'react-chartjs-2';
+import ZoomInIcon from '@mui/icons-material/ZoomIn';
+import ZoomOutIcon from '@mui/icons-material/ZoomOut';
+import RestartAltIcon from '@mui/icons-material/RestartAlt';
 import { VitalSign } from '../types';
 import {
   Chart as ChartJS,
@@ -13,18 +16,22 @@ import {
   Legend,
   ChartOptions,
   ChartData,
+  TimeScale,
 } from 'chart.js';
+import zoomPlugin from 'chartjs-plugin-zoom';
 import 'chartjs-adapter-date-fns';
 
 // Register ChartJS components
 ChartJS.register(
   CategoryScale,
   LinearScale,
+  TimeScale,
   PointElement,
   LineElement,
   Title,
   Tooltip,
-  Legend
+  Legend,
+  zoomPlugin
 );
 
 interface VitalSignsChartProps {
@@ -35,6 +42,7 @@ export const VitalSignsChart: React.FC<VitalSignsChartProps> = ({ vitalSigns }) 
   const theme = useTheme();
   const chartContainer = useRef<HTMLDivElement>(null);
   const chartInstance = useRef<ChartJS<'line'>>(null);
+  const [zoomLevel, setZoomLevel] = useState(1);
   
   // Function to format timestamps
   const formatTime = (timestamp: Date) => {
@@ -148,6 +156,9 @@ export const VitalSignsChart: React.FC<VitalSignsChartProps> = ({ vitalSigns }) 
   const chartOptions: ChartOptions<'line'> = {
     responsive: true,
     maintainAspectRatio: false,
+    animation: {
+      duration: 250 // Faster animations for better performance during zooming
+    },
     plugins: {
       legend: {
         position: 'top',
@@ -160,6 +171,35 @@ export const VitalSignsChart: React.FC<VitalSignsChartProps> = ({ vitalSigns }) 
       tooltip: {
         mode: 'index',
         intersect: false,
+      },
+      // Type assertion for zoom plugin options
+      //@ts-ignore
+      zoom: {
+        pan: {
+          enabled: true,
+          mode: 'x',
+          modifierKey: 'shift',
+        },
+        zoom: {
+          wheel: {
+            enabled: true,
+          },
+          pinch: {
+            enabled: true,
+          },
+          mode: 'x',
+          drag: {
+            enabled: true,
+            backgroundColor: 'rgba(225,225,225,0.3)',
+            borderColor: 'rgba(54, 162, 235, 0.8)',
+            borderWidth: 1,
+          },
+        },
+        limits: {
+          x: {
+            minRange: 2, // Minimum 2 data points visible
+          }
+        }
       },
     },
     scales: {
@@ -259,6 +299,33 @@ export const VitalSignsChart: React.FC<VitalSignsChartProps> = ({ vitalSigns }) 
     },
   };
   
+  // Handle zoom in
+  const handleZoomIn = () => {
+    if (chartInstance.current) {
+      // Use any type to avoid TypeScript errors with the plugin methods
+      (chartInstance.current as any).zoom(1.1);
+      setZoomLevel(prev => prev * 1.1);
+    }
+  };
+
+  // Handle zoom out
+  const handleZoomOut = () => {
+    if (chartInstance.current) {
+      // Use any type to avoid TypeScript errors with the plugin methods
+      (chartInstance.current as any).zoom(0.9);
+      setZoomLevel(prev => prev * 0.9);
+    }
+  };
+
+  // Handle reset zoom and pan
+  const handleResetZoom = () => {
+    if (chartInstance.current) {
+      // Use any type to avoid TypeScript errors with the plugin methods
+      (chartInstance.current as any).resetZoom();
+      setZoomLevel(1);
+    }
+  };
+  
   // Resize handler for chart responsiveness
   useEffect(() => {
     const handleResize = () => {
@@ -280,9 +347,32 @@ export const VitalSignsChart: React.FC<VitalSignsChartProps> = ({ vitalSigns }) 
 
   return (
     <div style={{ width: '100%', padding: '0', margin: '0' }}>
-      <Typography variant="h6" style={{ marginBottom: '16px' }}>
-        Vital Signs Chart
-      </Typography>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+        <Typography variant="h6">
+          Vital Signs Chart
+        </Typography>
+        
+        <div style={{ display: 'flex', alignItems: 'center' }}>
+          <Typography variant="caption" style={{ marginRight: '8px' }}>
+            {zoomLevel !== 1 ? 'Zoom: ' + Math.round(zoomLevel * 100) + '%' : ''}
+          </Typography>
+          <IconButton size="small" onClick={handleZoomIn} title="Zoom In">
+            <ZoomInIcon />
+          </IconButton>
+          <IconButton size="small" onClick={handleZoomOut} title="Zoom Out">
+            <ZoomOutIcon />
+          </IconButton>
+          <IconButton size="small" onClick={handleResetZoom} title="Reset Zoom">
+            <RestartAltIcon />
+          </IconButton>
+        </div>
+      </div>
+      
+      <Box style={{ width: '100%', padding: '4px', marginBottom: '8px', backgroundColor: '#f5f5f5', borderRadius: '4px' }}>
+        <Typography variant="caption" style={{ color: '#666' }}>
+          <strong>Tip:</strong> Scroll to zoom, drag to pan, or hold Shift while dragging for finer control
+        </Typography>
+      </Box>
 
       {vitalSigns.length === 0 ? (
         <Typography style={{ textAlign: 'center', padding: '32px 0' }}>
