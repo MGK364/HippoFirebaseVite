@@ -1,9 +1,12 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Typography, useTheme, IconButton, Box } from '@mui/material';
+import { Typography, useTheme, IconButton, Box, ButtonGroup, Tooltip } from '@mui/material';
 import { Line } from 'react-chartjs-2';
 import ZoomInIcon from '@mui/icons-material/ZoomIn';
 import ZoomOutIcon from '@mui/icons-material/ZoomOut';
 import RestartAltIcon from '@mui/icons-material/RestartAlt';
+import ArrowLeftIcon from '@mui/icons-material/ArrowLeft';
+import ArrowRightIcon from '@mui/icons-material/ArrowRight';
+import OpenWithIcon from '@mui/icons-material/OpenWith';
 import { VitalSign } from '../types';
 import {
   Chart as ChartJS,
@@ -12,7 +15,7 @@ import {
   PointElement,
   LineElement,
   Title,
-  Tooltip,
+  Tooltip as ChartTooltip,
   Legend,
   ChartOptions,
   ChartData,
@@ -29,7 +32,7 @@ ChartJS.register(
   PointElement,
   LineElement,
   Title,
-  Tooltip,
+  ChartTooltip,
   Legend,
   zoomPlugin
 );
@@ -43,6 +46,7 @@ export const VitalSignsChart: React.FC<VitalSignsChartProps> = ({ vitalSigns }) 
   const chartContainer = useRef<HTMLDivElement>(null);
   const chartInstance = useRef<ChartJS<'line'>>(null);
   const [zoomLevel, setZoomLevel] = useState(1);
+  const [isPanMode, setIsPanMode] = useState(false);
   
   // Function to format timestamps
   const formatTime = (timestamp: Date) => {
@@ -176,23 +180,19 @@ export const VitalSignsChart: React.FC<VitalSignsChartProps> = ({ vitalSigns }) 
       //@ts-ignore
       zoom: {
         pan: {
-          enabled: true,
+          enabled: isPanMode,
           mode: 'x',
-          modifierKey: 'shift',
         },
         zoom: {
           wheel: {
-            enabled: true,
+            enabled: false, // Disable wheel zoom
           },
           pinch: {
-            enabled: true,
+            enabled: false, // Disable pinch zoom
           },
           mode: 'x',
           drag: {
-            enabled: true,
-            backgroundColor: 'rgba(225,225,225,0.3)',
-            borderColor: 'rgba(54, 162, 235, 0.8)',
-            borderWidth: 1,
+            enabled: false, // Disable drag zoom
           },
         },
         limits: {
@@ -303,8 +303,8 @@ export const VitalSignsChart: React.FC<VitalSignsChartProps> = ({ vitalSigns }) 
   const handleZoomIn = () => {
     if (chartInstance.current) {
       // Use any type to avoid TypeScript errors with the plugin methods
-      (chartInstance.current as any).zoom(1.1);
-      setZoomLevel(prev => prev * 1.1);
+      (chartInstance.current as any).zoom(1.2);
+      setZoomLevel(prev => prev * 1.2);
     }
   };
 
@@ -312,8 +312,8 @@ export const VitalSignsChart: React.FC<VitalSignsChartProps> = ({ vitalSigns }) 
   const handleZoomOut = () => {
     if (chartInstance.current) {
       // Use any type to avoid TypeScript errors with the plugin methods
-      (chartInstance.current as any).zoom(0.9);
-      setZoomLevel(prev => prev * 0.9);
+      (chartInstance.current as any).zoom(0.8);
+      setZoomLevel(prev => prev * 0.8);
     }
   };
 
@@ -323,7 +323,29 @@ export const VitalSignsChart: React.FC<VitalSignsChartProps> = ({ vitalSigns }) 
       // Use any type to avoid TypeScript errors with the plugin methods
       (chartInstance.current as any).resetZoom();
       setZoomLevel(1);
+      setIsPanMode(false);
     }
+  };
+  
+  // Handle panning left
+  const handlePanLeft = () => {
+    if (chartInstance.current) {
+      // Use any type to avoid TypeScript errors with the plugin methods
+      (chartInstance.current as any).pan({ x: 100 }, undefined, 'default');
+    }
+  };
+  
+  // Handle panning right
+  const handlePanRight = () => {
+    if (chartInstance.current) {
+      // Use any type to avoid TypeScript errors with the plugin methods
+      (chartInstance.current as any).pan({ x: -100 }, undefined, 'default');
+    }
+  };
+  
+  // Toggle pan mode
+  const togglePanMode = () => {
+    setIsPanMode(!isPanMode);
   };
   
   // Resize handler for chart responsiveness
@@ -345,6 +367,19 @@ export const VitalSignsChart: React.FC<VitalSignsChartProps> = ({ vitalSigns }) 
     };
   }, []);
 
+  // Update chart options when pan mode changes
+  useEffect(() => {
+    if (chartInstance.current) {
+      // Update chart options with current isPanMode state
+      // Use type assertion to avoid TypeScript errors
+      const chart = chartInstance.current as any;
+      if (chart.options && chart.options.plugins && chart.options.plugins.zoom && chart.options.plugins.zoom.pan) {
+        chart.options.plugins.zoom.pan.enabled = isPanMode;
+        chart.update();
+      }
+    }
+  }, [isPanMode]);
+
   return (
     <div style={{ width: '100%', padding: '0', margin: '0' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
@@ -356,23 +391,44 @@ export const VitalSignsChart: React.FC<VitalSignsChartProps> = ({ vitalSigns }) 
           <Typography variant="caption" style={{ marginRight: '8px' }}>
             {zoomLevel !== 1 ? 'Zoom: ' + Math.round(zoomLevel * 100) + '%' : ''}
           </Typography>
-          <IconButton size="small" onClick={handleZoomIn} title="Zoom In">
-            <ZoomInIcon />
-          </IconButton>
-          <IconButton size="small" onClick={handleZoomOut} title="Zoom Out">
-            <ZoomOutIcon />
-          </IconButton>
-          <IconButton size="small" onClick={handleResetZoom} title="Reset Zoom">
-            <RestartAltIcon />
-          </IconButton>
+          <ButtonGroup size="small" aria-label="chart controls">
+            <Tooltip title="Zoom In">
+              <IconButton size="small" onClick={handleZoomIn}>
+                <ZoomInIcon fontSize="small" />
+              </IconButton>
+            </Tooltip>
+            <Tooltip title="Zoom Out">
+              <IconButton size="small" onClick={handleZoomOut}>
+                <ZoomOutIcon fontSize="small" />
+              </IconButton>
+            </Tooltip>
+            <Tooltip title="Pan Left">
+              <IconButton size="small" onClick={handlePanLeft}>
+                <ArrowLeftIcon fontSize="small" />
+              </IconButton>
+            </Tooltip>
+            <Tooltip title="Pan Right">
+              <IconButton size="small" onClick={handlePanRight}>
+                <ArrowRightIcon fontSize="small" />
+              </IconButton>
+            </Tooltip>
+            <Tooltip title={isPanMode ? "Disable Pan Mode" : "Enable Pan Mode"}>
+              <IconButton 
+                size="small" 
+                onClick={togglePanMode}
+                color={isPanMode ? "primary" : "default"}
+              >
+                <OpenWithIcon fontSize="small" />
+              </IconButton>
+            </Tooltip>
+            <Tooltip title="Reset View">
+              <IconButton size="small" onClick={handleResetZoom}>
+                <RestartAltIcon fontSize="small" />
+              </IconButton>
+            </Tooltip>
+          </ButtonGroup>
         </div>
       </div>
-      
-      <Box style={{ width: '100%', padding: '4px', marginBottom: '8px', backgroundColor: '#f5f5f5', borderRadius: '4px' }}>
-        <Typography variant="caption" style={{ color: '#666' }}>
-          <strong>Tip:</strong> Scroll to zoom, drag to pan, or hold Shift while dragging for finer control
-        </Typography>
-      </Box>
 
       {vitalSigns.length === 0 ? (
         <Typography style={{ textAlign: 'center', padding: '32px 0' }}>
