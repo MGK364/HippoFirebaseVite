@@ -191,11 +191,18 @@ export const PatientDetail: React.FC = () => {
                 <Card>
                   <CardHeader title="Anesthesia Monitoring" />
                   <Divider />
-                  <CardContent>
+                  <CardContent sx={{ 
+                    p: 0, 
+                    width: '100%',
+                    display: 'flex',
+                    "& .MuiBox-root": {
+                      width: '100%'
+                    }
+                  }}>
                     {vitalSigns.length > 0 ? (
                       <VitalSignsChart vitalSigns={vitalSigns} />
                     ) : (
-                      <Typography>No vital signs data available</Typography>
+                      <Typography sx={{ p: 2 }}>No vital signs data available</Typography>
                     )}
                   </CardContent>
                 </Card>

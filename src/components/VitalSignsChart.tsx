@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Box, Typography, useTheme } from '@mui/material';
+import { Box, Typography, useTheme, Container } from '@mui/material';
 import { Line } from 'react-chartjs-2';
 import { VitalSign } from '../types';
 import {
@@ -157,9 +157,9 @@ export const VitalSignsChart: React.FC<VitalSignsChartProps> = ({ vitalSigns }) 
     layout: {
       padding: {
         top: 5,
-        right: 10,
+        right: 15,
         bottom: 5,
-        left: 10
+        left: 15
       }
     },
     plugins: {
@@ -167,9 +167,9 @@ export const VitalSignsChart: React.FC<VitalSignsChartProps> = ({ vitalSigns }) 
         position: 'top',
         align: 'center',
         labels: {
-          boxWidth: 20,
+          boxWidth: 15,
           usePointStyle: true,
-          padding: 10,
+          padding: 8,
           font: {
             size: 11
           }
@@ -350,7 +350,7 @@ export const VitalSignsChart: React.FC<VitalSignsChartProps> = ({ vitalSigns }) 
       },
     },
     animation: {
-      duration: 500,
+      duration: 300,
     },
     elements: {
       point: {
@@ -374,46 +374,51 @@ export const VitalSignsChart: React.FC<VitalSignsChartProps> = ({ vitalSigns }) 
   useEffect(() => {
     if (!containerRef.current) return;
 
-    // Initial sizing
-    setChartWidth(containerRef.current.clientWidth);
-    
-    const resizeObserver = new ResizeObserver(entries => {
-      for (const entry of entries) {
-        const newWidth = entry.contentRect.width;
-        setChartWidth(newWidth);
-        if (chartRef.current) {
-          chartRef.current.resize();
-        }
-      }
-    });
-
-    resizeObserver.observe(containerRef.current);
-    
-    // Also observe the window for any layout changes
-    const handleWindowResize = () => {
+    // Initial sizing - force an immediate resize
+    const updateChartSize = () => {
       if (containerRef.current && chartRef.current) {
-        setChartWidth(containerRef.current.clientWidth);
-        chartRef.current.resize();
+        const parentWidth = containerRef.current.parentElement?.clientWidth || window.innerWidth;
+        setChartWidth(parentWidth);
+        
+        // Force a layout calculation and resize
+        setTimeout(() => {
+          if (chartRef.current) {
+            chartRef.current.resize();
+            chartRef.current.update();
+          }
+        }, 0);
       }
     };
     
-    window.addEventListener('resize', handleWindowResize);
+    // Initial call
+    updateChartSize();
+    
+    const resizeObserver = new ResizeObserver(() => {
+      updateChartSize();
+    });
+
+    // Observe both the container and its parent
+    resizeObserver.observe(containerRef.current);
+    if (containerRef.current.parentElement) {
+      resizeObserver.observe(containerRef.current.parentElement);
+    }
+    
+    // Also observe window resize events
+    window.addEventListener('resize', updateChartSize);
 
     return () => {
-      if (containerRef.current) {
-        resizeObserver.unobserve(containerRef.current);
-      }
-      window.removeEventListener('resize', handleWindowResize);
+      resizeObserver.disconnect();
+      window.removeEventListener('resize', updateChartSize);
     };
   }, []);
 
   return (
     <Box sx={{ 
       width: '100%', 
-      paddingBottom: 2, 
-      height: 'auto',
+      paddingBottom: 2,
       display: 'flex',
-      flexDirection: 'column'
+      flexDirection: 'column',
+      flex: 1
     }}>
       <Typography variant="h6" component="h2" gutterBottom>
         Vital Signs Chart
@@ -427,15 +432,15 @@ export const VitalSignsChart: React.FC<VitalSignsChartProps> = ({ vitalSigns }) 
         <Box
           ref={containerRef}
           sx={{
-            width: '100%',
+            width: '100%', 
             height: '500px',
             position: 'relative',
-            marginLeft: 'auto',
-            marginRight: 'auto',
-            maxWidth: '100%',
-            overflow: 'hidden',
+            flex: 1,
+            display: 'block',
+            boxSizing: 'border-box',
             '& canvas': {
-              width: '100% !important'
+              width: '100% !important',
+              maxWidth: 'none !important'
             }
           }}
         >
@@ -443,6 +448,8 @@ export const VitalSignsChart: React.FC<VitalSignsChartProps> = ({ vitalSigns }) 
             ref={chartRef}
             data={chartData}
             options={chartOptions}
+            height="100%"
+            width="100%"
           />
         </Box>
       )}
