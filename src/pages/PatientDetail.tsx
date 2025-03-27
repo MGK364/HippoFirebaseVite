@@ -126,7 +126,13 @@ export const PatientDetail: React.FC = () => {
   }
 
   return (
-    <Box>
+    <Box sx={{ 
+      width: '100%', 
+      maxWidth: '100%',
+      display: 'flex',
+      flexDirection: 'column',
+      flex: 1
+    }}>
       <Box sx={{ mb: 3, display: 'flex', alignItems: 'center' }}>
         <IconButton onClick={handleBackClick} sx={{ mr: 1 }}>
           <ArrowBackIcon />
@@ -146,7 +152,7 @@ export const PatientDetail: React.FC = () => {
         </Typography>
       ) : patient ? (
         <>
-          <Paper sx={{ mb: 3, p: 3 }}>
+          <Paper sx={{ mb: 3, p: 3, width: '100%' }}>
             <Stack spacing={2}>
               <Box>
                 <Typography variant="h5" component="h2">
@@ -177,8 +183,8 @@ export const PatientDetail: React.FC = () => {
             </Stack>
           </Paper>
 
-          <Box sx={{ width: '100%' }}>
-            <Paper sx={{ mb: 3 }}>
+          <Box sx={{ width: '100%', display: 'flex', flexDirection: 'column' }}>
+            <Paper sx={{ mb: 3, width: '100%' }}>
               <Tabs 
                 value={activeTab} 
                 onChange={handleTabChange} 
@@ -195,15 +201,19 @@ export const PatientDetail: React.FC = () => {
                 {/* Add Vital Signs Form */}
                 <VitalSignForm patientId={patientId} onVitalSignAdded={handleVitalSignAdded} />
                 
-                <Card sx={{ width: '100%' }}>
+                <Card sx={{ width: '100%', minWidth: '100%', display: 'flex', flexDirection: 'column' }}>
                   <CardHeader title="Anesthesia Monitoring" />
                   <Divider />
                   <CardContent sx={{ 
                     p: 0, 
                     width: '100%',
+                    minWidth: '100%',
                     display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'stretch',
                     "& .MuiBox-root": {
-                      width: '100%'
+                      width: '100%',
+                      minWidth: '100%'
                     }
                   }}>
                     {vitalSigns.length > 0 ? (
@@ -216,7 +226,7 @@ export const PatientDetail: React.FC = () => {
               </TabPanel>
               
               <TabPanel value={activeTab} index={1}>
-                <Card sx={{ width: '100%' }}>
+                <Card sx={{ width: '100%', minWidth: '100%', display: 'flex', flexDirection: 'column' }}>
                   <CardHeader 
                     title="Medications" 
                     action={
@@ -233,9 +243,13 @@ export const PatientDetail: React.FC = () => {
                   <CardContent sx={{
                     p: 2,
                     width: '100%',
+                    minWidth: '100%',
                     display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'stretch',
                     "& .MuiBox-root": {
-                      width: '100%'
+                      width: '100%',
+                      minWidth: '100%'
                     }
                   }}>
                     {medications.length > 0 ? (
@@ -248,7 +262,7 @@ export const PatientDetail: React.FC = () => {
               </TabPanel>
               
               <TabPanel value={activeTab} index={2}>
-                <Card sx={{ width: '100%' }}>
+                <Card sx={{ width: '100%', minWidth: '100%', display: 'flex', flexDirection: 'column' }}>
                   <CardHeader 
                     title="Patient History" 
                     action={
@@ -265,9 +279,13 @@ export const PatientDetail: React.FC = () => {
                   <CardContent sx={{
                     p: 2,
                     width: '100%',
+                    minWidth: '100%',
                     display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'stretch',
                     "& .MuiBox-root": {
-                      width: '100%'
+                      width: '100%',
+                      minWidth: '100%'
                     }
                   }}>
                     {history.length > 0 ? (

@@ -159,7 +159,11 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
           flexGrow: 1, 
           p: 3, 
           width: { sm: `calc(100% - ${drawerWidth}px)` },
-          mt: '64px' // To account for the AppBar height
+          maxWidth: '100%',
+          mt: '64px', // To account for the AppBar height
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'stretch'
         }}
       >
         {children}

@@ -367,6 +367,7 @@ export const VitalSignsChart: React.FC<VitalSignsChartProps> = ({ vitalSigns }) 
   useEffect(() => {
     if (chartRef.current) {
       chartRef.current.resize();
+      chartRef.current.update();
     }
   }, [chartWidth, vitalSigns]);
   
@@ -397,14 +398,20 @@ export const VitalSignsChart: React.FC<VitalSignsChartProps> = ({ vitalSigns }) 
       updateChartSize();
     });
 
-    // Observe both the container and its parent
+    // Observe both the container and its parent elements
     resizeObserver.observe(containerRef.current);
     if (containerRef.current.parentElement) {
       resizeObserver.observe(containerRef.current.parentElement);
     }
+    if (containerRef.current.parentElement?.parentElement) {
+      resizeObserver.observe(containerRef.current.parentElement.parentElement);
+    }
     
     // Also observe window resize events
     window.addEventListener('resize', updateChartSize);
+    
+    // Force chart resize on next event loop
+    setTimeout(updateChartSize, 100);
 
     return () => {
       resizeObserver.disconnect();
@@ -414,11 +421,13 @@ export const VitalSignsChart: React.FC<VitalSignsChartProps> = ({ vitalSigns }) 
 
   return (
     <Box sx={{ 
-      width: '100%', 
+      width: '100% !important', 
+      minWidth: '100%',
+      maxWidth: '100%',
+      boxSizing: 'border-box',
       paddingBottom: 2,
       display: 'flex',
-      flexDirection: 'column',
-      flex: 1
+      flexDirection: 'column'
     }}>
       <Typography variant="h6" component="h2" gutterBottom>
         Vital Signs Chart
@@ -432,14 +441,15 @@ export const VitalSignsChart: React.FC<VitalSignsChartProps> = ({ vitalSigns }) 
         <Box
           ref={containerRef}
           sx={{
-            width: '100%', 
+            width: '100% !important', 
+            minWidth: '100%',
             height: '500px',
             position: 'relative',
-            flex: 1,
             display: 'block',
             boxSizing: 'border-box',
             '& canvas': {
               width: '100% !important',
+              minWidth: '100% !important',
               maxWidth: 'none !important'
             }
           }}
@@ -450,6 +460,7 @@ export const VitalSignsChart: React.FC<VitalSignsChartProps> = ({ vitalSigns }) 
             options={chartOptions}
             height="100%"
             width="100%"
+            style={{ width: '100%', minWidth: '100%' }}
           />
         </Box>
       )}
