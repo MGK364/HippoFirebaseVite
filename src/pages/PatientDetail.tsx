@@ -41,15 +41,12 @@ const TabPanel: React.FC<TabPanelProps> = ({ children, value, index, ...other })
       {...other}
     >
       {value === index && (
-        <Box sx={{ 
-          p: 3, 
-          width: '100%', 
-          boxSizing: 'border-box',
-          display: 'flex',
-          flexDirection: 'column'
+        <div style={{ 
+          padding: 24, 
+          width: '100%'
         }}>
           {children}
-        </Box>
+        </div>
       )}
     </div>
   );
@@ -201,100 +198,73 @@ export const PatientDetail: React.FC = () => {
                 {/* Add Vital Signs Form */}
                 <VitalSignForm patientId={patientId} onVitalSignAdded={handleVitalSignAdded} />
                 
-                <Card sx={{ width: '100%', minWidth: '100%', display: 'flex', flexDirection: 'column' }}>
-                  <CardHeader title="Anesthesia Monitoring" />
-                  <Divider />
-                  <CardContent sx={{ 
-                    p: 0, 
-                    width: '100%',
-                    minWidth: '100%',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    alignItems: 'stretch',
-                    "& .MuiBox-root": {
-                      width: '100%',
-                      minWidth: '100%'
-                    }
-                  }}>
-                    {vitalSigns.length > 0 ? (
-                      <VitalSignsChart vitalSigns={vitalSigns} />
-                    ) : (
-                      <Typography sx={{ p: 2 }}>No vital signs data available</Typography>
-                    )}
-                  </CardContent>
-                </Card>
+                <div style={{ width: '100%' }}>
+                  <Card>
+                    <CardHeader title="Anesthesia Monitoring" />
+                    <Divider />
+                    <div style={{ width: '100%', padding: 0 }}>
+                      {vitalSigns.length > 0 ? (
+                        <VitalSignsChart vitalSigns={vitalSigns} />
+                      ) : (
+                        <Typography sx={{ p: 2 }}>No vital signs data available</Typography>
+                      )}
+                    </div>
+                  </Card>
+                </div>
               </TabPanel>
               
               <TabPanel value={activeTab} index={1}>
-                <Card sx={{ width: '100%', minWidth: '100%', display: 'flex', flexDirection: 'column' }}>
-                  <CardHeader 
-                    title="Medications" 
-                    action={
-                      <Button 
-                        variant="contained" 
-                        size="small"
-                        onClick={() => navigate(`/patients/${patientId}/medications/new`)}
-                      >
-                        Add Medication
-                      </Button>
-                    }
-                  />
-                  <Divider />
-                  <CardContent sx={{
-                    p: 2,
-                    width: '100%',
-                    minWidth: '100%',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    alignItems: 'stretch',
-                    "& .MuiBox-root": {
-                      width: '100%',
-                      minWidth: '100%'
-                    }
-                  }}>
-                    {medications.length > 0 ? (
-                      <MedicationList medications={medications} patientId={patientId} />
-                    ) : (
-                      <Typography>No medications data available</Typography>
-                    )}
-                  </CardContent>
-                </Card>
+                <div style={{ width: '100%' }}>
+                  <Card>
+                    <CardHeader 
+                      title="Medications" 
+                      action={
+                        <Button 
+                          variant="contained" 
+                          size="small"
+                          onClick={() => navigate(`/patients/${patientId}/medications/new`)}
+                        >
+                          Add Medication
+                        </Button>
+                      }
+                    />
+                    <Divider />
+                    <div style={{ width: '100%', padding: 16 }}>
+                      {medications.length > 0 ? (
+                        <MedicationList medications={medications} patientId={patientId} />
+                      ) : (
+                        <Typography>No medications data available</Typography>
+                      )}
+                    </div>
+                  </Card>
+                </div>
               </TabPanel>
               
               <TabPanel value={activeTab} index={2}>
-                <Card sx={{ width: '100%', minWidth: '100%', display: 'flex', flexDirection: 'column' }}>
-                  <CardHeader 
-                    title="Patient History" 
-                    action={
-                      <Button 
-                        variant="contained" 
-                        size="small"
-                        onClick={() => navigate(`/patients/${patientId}/history/new`)}
-                      >
-                        Add History Entry
-                      </Button>
-                    }
-                  />
-                  <Divider />
-                  <CardContent sx={{
-                    p: 2,
-                    width: '100%',
-                    minWidth: '100%',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    alignItems: 'stretch',
-                    "& .MuiBox-root": {
-                      width: '100%',
-                      minWidth: '100%'
-                    }
-                  }}>
-                    {history.length > 0 ? (
-                      <PatientHistoryList history={history} />
-                    ) : (
-                      <Typography>No history data available</Typography>
-                    )}
-                  </CardContent>
-                </Card>
+                <div style={{ width: '100%' }}>
+                  <Card>
+                    <CardHeader 
+                      title="Patient History" 
+                      action={
+                        <Button 
+                          variant="contained" 
+                          size="small"
+                          onClick={() => navigate(`/patients/${patientId}/history/new`)}
+                        >
+                          Add History Entry
+                        </Button>
+                      }
+                    />
+                    <Divider />
+                    <div style={{ width: '100%', padding: 16 }}>
+                      {history.length > 0 ? (
+                        <PatientHistoryList history={history} />
+                      ) : (
+                        <Typography>No history data available</Typography>
+                      )}
+                    </div>
+                  </Card>
+                </div>
               </TabPanel>
             </Paper>
           </Box>

@@ -1,5 +1,5 @@
-import React, { useEffect, useRef, useState } from 'react';
-import { Box, Typography, useTheme, Container } from '@mui/material';
+import React, { useEffect, useRef } from 'react';
+import { Box, Typography, useTheme } from '@mui/material';
 import { Line } from 'react-chartjs-2';
 import { VitalSign } from '../types';
 import {
@@ -34,8 +34,7 @@ interface VitalSignsChartProps {
 export const VitalSignsChart: React.FC<VitalSignsChartProps> = ({ vitalSigns }) => {
   const theme = useTheme();
   const containerRef = useRef<HTMLDivElement>(null);
-  const chartRef = useRef<ChartJS<'line'>>(null);
-  const [chartWidth, setChartWidth] = useState<number>(0);
+  const chartInstance = useRef<ChartJS<'line'>>(null);
   
   // Function to format timestamps
   const formatTime = (timestamp: Date) => {
@@ -146,26 +145,25 @@ export const VitalSignsChart: React.FC<VitalSignsChartProps> = ({ vitalSigns }) 
     ],
   };
   
-  // Set chart options with responsive scaling
+  // Set chart options
   const chartOptions: ChartOptions<'line'> = {
     responsive: true,
     maintainAspectRatio: false,
+    resizeDelay: 100,
+    onResize: (chart, size) => {
+      if (containerRef.current) {
+        const width = containerRef.current.offsetWidth;
+        chart.canvas.style.width = `${width}px`;
+      }
+    },
     interaction: {
       mode: 'index',
       intersect: false,
     },
-    layout: {
-      padding: {
-        top: 5,
-        right: 15,
-        bottom: 5,
-        left: 15
-      }
-    },
     plugins: {
       legend: {
         position: 'top',
-        align: 'center',
+        align: 'start',
         labels: {
           boxWidth: 15,
           usePointStyle: true,
@@ -363,107 +361,47 @@ export const VitalSignsChart: React.FC<VitalSignsChartProps> = ({ vitalSigns }) 
     },
   };
   
-  // Force resize on mount and when dependencies change
+  // Handle window resize
   useEffect(() => {
-    if (chartRef.current) {
-      chartRef.current.resize();
-      chartRef.current.update();
-    }
-  }, [chartWidth, vitalSigns]);
-  
-  // Use ResizeObserver to update chart when container size changes
-  useEffect(() => {
-    if (!containerRef.current) return;
-
-    // Initial sizing - force an immediate resize
-    const updateChartSize = () => {
-      if (containerRef.current && chartRef.current) {
-        const parentWidth = containerRef.current.parentElement?.clientWidth || window.innerWidth;
-        setChartWidth(parentWidth);
-        
-        // Force a layout calculation and resize
-        setTimeout(() => {
-          if (chartRef.current) {
-            chartRef.current.resize();
-            chartRef.current.update();
-          }
-        }, 0);
+    const handleResize = () => {
+      if (chartInstance.current) {
+        chartInstance.current.resize();
       }
     };
     
-    // Initial call
-    updateChartSize();
+    window.addEventListener('resize', handleResize);
     
-    const resizeObserver = new ResizeObserver(() => {
-      updateChartSize();
-    });
-
-    // Observe both the container and its parent elements
-    resizeObserver.observe(containerRef.current);
-    if (containerRef.current.parentElement) {
-      resizeObserver.observe(containerRef.current.parentElement);
-    }
-    if (containerRef.current.parentElement?.parentElement) {
-      resizeObserver.observe(containerRef.current.parentElement.parentElement);
-    }
-    
-    // Also observe window resize events
-    window.addEventListener('resize', updateChartSize);
-    
-    // Force chart resize on next event loop
-    setTimeout(updateChartSize, 100);
-
     return () => {
-      resizeObserver.disconnect();
-      window.removeEventListener('resize', updateChartSize);
+      window.removeEventListener('resize', handleResize);
     };
   }, []);
 
   return (
-    <Box sx={{ 
-      width: '100% !important', 
-      minWidth: '100%',
-      maxWidth: '100%',
-      boxSizing: 'border-box',
-      paddingBottom: 2,
-      display: 'flex',
-      flexDirection: 'column'
-    }}>
-      <Typography variant="h6" component="h2" gutterBottom>
+    <div style={{ width: '100%' }}>
+      <Typography variant="h6" gutterBottom>
         Vital Signs Chart
       </Typography>
 
       {vitalSigns.length === 0 ? (
         <Typography variant="body1" color="text.secondary" sx={{ py: 4, textAlign: 'center' }}>
-          No vital signs data available yet. Add vital signs to visualize them here.
+          No vital signs data available yet.
         </Typography>
       ) : (
-        <Box
+        <div
           ref={containerRef}
-          sx={{
-            width: '100% !important', 
-            minWidth: '100%',
+          style={{ 
+            width: '100%',
             height: '500px',
-            position: 'relative',
-            display: 'block',
-            boxSizing: 'border-box',
-            '& canvas': {
-              width: '100% !important',
-              minWidth: '100% !important',
-              maxWidth: 'none !important'
-            }
+            position: 'relative'
           }}
         >
           <Line
-            ref={chartRef}
+            ref={chartInstance}
             data={chartData}
             options={chartOptions}
-            height="100%"
-            width="100%"
-            style={{ width: '100%', minWidth: '100%' }}
           />
-        </Box>
+        </div>
       )}
-    </Box>
+    </div>
   );
 }; 
