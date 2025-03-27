@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useRef } from 'react';
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -31,6 +31,7 @@ interface VitalSignsChartProps {
 
 export const VitalSignsChart: React.FC<VitalSignsChartProps> = ({ vitalSigns }) => {
   const theme = useTheme();
+  const chartRef = useRef<ChartJS<"line">>(null);
   
   // Sort vital signs by timestamp (oldest first)
   const sortedVitalSigns = [...vitalSigns].sort((a, b) => 
@@ -118,9 +119,18 @@ export const VitalSignsChart: React.FC<VitalSignsChartProps> = ({ vitalSigns }) 
   const options: ChartOptions<'line'> = {
     responsive: true,
     maintainAspectRatio: false,
+    resizeDelay: 100,
     plugins: {
       legend: {
         position: 'top',
+        display: true,
+        labels: {
+          // This more specific font property overrides the global property
+          font: {
+            size: 12,
+          },
+          boxWidth: 15,
+        }
       },
       tooltip: {
         mode: 'index',
@@ -132,6 +142,11 @@ export const VitalSignsChart: React.FC<VitalSignsChartProps> = ({ vitalSigns }) 
         title: {
           display: true,
           text: 'Time'
+        },
+        ticks: {
+          autoSkip: true,
+          maxRotation: 45,
+          minRotation: 45
         }
       },
       y: {
@@ -189,11 +204,32 @@ export const VitalSignsChart: React.FC<VitalSignsChartProps> = ({ vitalSigns }) 
       }
     }
   };
+  
+  // Add resize observer to handle responsive behavior
+  useEffect(() => {
+    const resizeObserver = new ResizeObserver(() => {
+      if (chartRef.current) {
+        chartRef.current.update();
+      }
+    });
+    
+    const chartContainer = document.getElementById('vital-signs-chart-container');
+    if (chartContainer) {
+      resizeObserver.observe(chartContainer);
+    }
+    
+    return () => {
+      if (chartContainer) {
+        resizeObserver.unobserve(chartContainer);
+      }
+      resizeObserver.disconnect();
+    };
+  }, []);
 
   return (
-    <Box sx={{ height: 500 }}>
+    <Box id="vital-signs-chart-container" sx={{ height: 500, width: '100%' }}>
       {vitalSigns.length > 0 ? (
-        <Line options={options} data={data} />
+        <Line ref={chartRef} options={options} data={data} />
       ) : (
         <Typography textAlign="center">No vital sign data available</Typography>
       )}

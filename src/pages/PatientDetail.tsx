@@ -22,6 +22,7 @@ import { Patient, VitalSign, Medication, PatientHistory } from '../types';
 import { VitalSignsChart } from '../components/VitalSignsChart';
 import { MedicationList } from '../components/MedicationList';
 import { PatientHistoryList } from '../components/PatientHistoryList';
+import { VitalSignForm } from '../components/VitalSignForm';
 
 interface TabPanelProps {
   children?: React.ReactNode;
@@ -58,43 +59,43 @@ export const PatientDetail: React.FC = () => {
   const [history, setHistory] = useState<PatientHistory[]>([]);
   const [activeTab, setActiveTab] = useState(0);
 
-  useEffect(() => {
-    const fetchPatientData = async () => {
-      if (!patientId) return;
+  const fetchPatientData = async () => {
+    if (!patientId) return;
 
-      try {
-        setLoading(true);
-        
-        // Fetch patient details
-        const patientData = await getPatient(patientId);
-        if (!patientData) {
-          setError('Patient not found');
-          setLoading(false);
-          return;
-        }
-        setPatient(patientData);
-        
-        // Fetch vital signs
-        const vitalSignsData = await getVitalSigns(patientId);
-        setVitalSigns(vitalSignsData);
-        
-        // Fetch medications
-        const medicationsData = await getMedications(patientId);
-        setMedications(medicationsData);
-        
-        // Fetch patient history
-        const historyData = await getPatientHistory(patientId);
-        setHistory(historyData);
-        
-        setError('');
-      } catch (err) {
-        console.error('Error fetching patient data:', err);
-        setError('Failed to load patient data. Please try again later.');
-      } finally {
+    try {
+      setLoading(true);
+      
+      // Fetch patient details
+      const patientData = await getPatient(patientId);
+      if (!patientData) {
+        setError('Patient not found');
         setLoading(false);
+        return;
       }
-    };
+      setPatient(patientData);
+      
+      // Fetch vital signs
+      const vitalSignsData = await getVitalSigns(patientId);
+      setVitalSigns(vitalSignsData);
+      
+      // Fetch medications
+      const medicationsData = await getMedications(patientId);
+      setMedications(medicationsData);
+      
+      // Fetch patient history
+      const historyData = await getPatientHistory(patientId);
+      setHistory(historyData);
+      
+      setError('');
+    } catch (err) {
+      console.error('Error fetching patient data:', err);
+      setError('Failed to load patient data. Please try again later.');
+    } finally {
+      setLoading(false);
+    }
+  };
 
+  useEffect(() => {
     fetchPatientData();
   }, [patientId]);
 
@@ -104,6 +105,13 @@ export const PatientDetail: React.FC = () => {
 
   const handleBackClick = () => {
     navigate('/patients');
+  };
+
+  const handleVitalSignAdded = () => {
+    // Refresh the vital signs data
+    if (patientId) {
+      fetchPatientData();
+    }
   };
 
   if (!patientId) {
@@ -177,19 +185,11 @@ export const PatientDetail: React.FC = () => {
               </Tabs>
               
               <TabPanel value={activeTab} index={0}>
+                {/* Add Vital Signs Form */}
+                <VitalSignForm patientId={patientId} onVitalSignAdded={handleVitalSignAdded} />
+                
                 <Card>
-                  <CardHeader 
-                    title="Anesthesia Monitoring" 
-                    action={
-                      <Button 
-                        variant="contained" 
-                        size="small"
-                        onClick={() => navigate(`/patients/${patientId}/vitals/new`)}
-                      >
-                        Add Vital Signs
-                      </Button>
-                    }
-                  />
+                  <CardHeader title="Anesthesia Monitoring" />
                   <Divider />
                   <CardContent>
                     {vitalSigns.length > 0 ? (
