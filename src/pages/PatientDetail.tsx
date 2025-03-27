@@ -14,19 +14,14 @@ import {
   Card,
   CardHeader,
   CardContent,
-  IconButton,
-  Collapse
+  IconButton
 } from '@mui/material';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
-import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
-import ExpandLessIcon from '@mui/icons-material/ExpandLess';
-import MonitorHeartIcon from '@mui/icons-material/MonitorHeart';
-import { getPatient, getVitalSigns, getMedications, getPatientHistory, addVitalSign } from '../services/patients';
+import { getPatient, getVitalSigns, getMedications, getPatientHistory } from '../services/patients';
 import { Patient, VitalSign, Medication, PatientHistory } from '../types';
 import { VitalSignsChart } from '../components/VitalSignsChart';
 import { MedicationList } from '../components/MedicationList';
 import { PatientHistoryList } from '../components/PatientHistoryList';
-import { AddVitalSigns } from './AddVitalSigns';
 
 interface TabPanelProps {
   children?: React.ReactNode;
@@ -62,18 +57,6 @@ export const PatientDetail: React.FC = () => {
   const [medications, setMedications] = useState<Medication[]>([]);
   const [history, setHistory] = useState<PatientHistory[]>([]);
   const [activeTab, setActiveTab] = useState(0);
-  const [showAddVitalSigns, setShowAddVitalSigns] = useState(false);
-
-  const fetchVitalSigns = async () => {
-    if (!patientId) return;
-    
-    try {
-      const vitalSignsData = await getVitalSigns(patientId);
-      setVitalSigns(vitalSignsData);
-    } catch (err) {
-      console.error('Error fetching vital signs:', err);
-    }
-  };
 
   useEffect(() => {
     const fetchPatientData = async () => {
@@ -92,7 +75,8 @@ export const PatientDetail: React.FC = () => {
         setPatient(patientData);
         
         // Fetch vital signs
-        await fetchVitalSigns();
+        const vitalSignsData = await getVitalSigns(patientId);
+        setVitalSigns(vitalSignsData);
         
         // Fetch medications
         const medicationsData = await getMedications(patientId);
@@ -122,46 +106,19 @@ export const PatientDetail: React.FC = () => {
     navigate('/patients');
   };
 
-  const handleToggleAddVitalSigns = () => {
-    setShowAddVitalSigns(!showAddVitalSigns);
-  };
-
-  const handleVitalSignsAdded = async () => {
-    // Refresh vital signs data
-    await fetchVitalSigns();
-    // Hide the form
-    setShowAddVitalSigns(false);
-  };
-
-  const handleNavigateToMonitoring = () => {
-    if (patientId) {
-      navigate(`/patients/${patientId}/monitoring`);
-    }
-  };
-
   if (!patientId) {
     return <Navigate to="/patients" />;
   }
 
   return (
     <Box>
-      <Box sx={{ mb: 3, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-        <Box sx={{ display: 'flex', alignItems: 'center' }}>
-          <IconButton onClick={handleBackClick} sx={{ mr: 1 }}>
-            <ArrowBackIcon />
-          </IconButton>
-          <Typography variant="h4" component="h1">
-            Patient Details
-          </Typography>
-        </Box>
-        <Button 
-          variant="contained" 
-          color="primary" 
-          startIcon={<MonitorHeartIcon />}
-          onClick={handleNavigateToMonitoring}
-        >
-          Monitoring
-        </Button>
+      <Box sx={{ mb: 3, display: 'flex', alignItems: 'center' }}>
+        <IconButton onClick={handleBackClick} sx={{ mr: 1 }}>
+          <ArrowBackIcon />
+        </IconButton>
+        <Typography variant="h4" component="h1">
+          Patient Details
+        </Typography>
       </Box>
 
       {loading ? (
@@ -216,46 +173,32 @@ export const PatientDetail: React.FC = () => {
               >
                 <Tab label="Vital Signs" />
                 <Tab label="Medications" />
-                <Tab label="History" />
-                <Tab label="Documents" />
+                <Tab label="Patient History" />
               </Tabs>
               
               <TabPanel value={activeTab} index={0}>
-                <Box sx={{ display: 'flex', justifyContent: 'flex-end', mb: 2 }}>
-                  <Button 
-                    variant="outlined" 
-                    color="primary" 
-                    onClick={handleToggleAddVitalSigns}
-                    endIcon={showAddVitalSigns ? <ExpandLessIcon /> : <ExpandMoreIcon />}
-                  >
-                    {showAddVitalSigns ? 'Hide Form' : 'Add Vital Signs'}
-                  </Button>
-                  <Button 
-                    variant="outlined" 
-                    color="secondary" 
-                    onClick={handleNavigateToMonitoring}
-                    startIcon={<MonitorHeartIcon />}
-                    sx={{ ml: 2 }}
-                  >
-                    Live Monitoring
-                  </Button>
-                </Box>
-                
-                <Collapse in={showAddVitalSigns}>
-                  <Box sx={{ mb: 3 }}>
-                    <AddVitalSigns 
-                      patientId={patientId} 
-                      onVitalSignsAdded={handleVitalSignsAdded}
-                      inline
-                    />
-                  </Box>
-                </Collapse>
-                
-                {vitalSigns.length > 0 ? (
-                  <VitalSignsChart vitalSigns={vitalSigns} height={400} />
-                ) : (
-                  <Typography>No vital signs recorded yet.</Typography>
-                )}
+                <Card>
+                  <CardHeader 
+                    title="Anesthesia Monitoring" 
+                    action={
+                      <Button 
+                        variant="contained" 
+                        size="small"
+                        onClick={() => navigate(`/patients/${patientId}/vitals/new`)}
+                      >
+                        Add Vital Signs
+                      </Button>
+                    }
+                  />
+                  <Divider />
+                  <CardContent>
+                    {vitalSigns.length > 0 ? (
+                      <VitalSignsChart vitalSigns={vitalSigns} />
+                    ) : (
+                      <Typography>No vital signs data available</Typography>
+                    )}
+                  </CardContent>
+                </Card>
               </TabPanel>
               
               <TabPanel value={activeTab} index={1}>

@@ -1,78 +1,80 @@
 import React from 'react';
-import { 
-  List, 
-  ListItem, 
-  ListItemText, 
-  Paper, 
-  Typography, 
+import {
+  List,
+  ListItem,
+  ListItemText,
+  Typography,
+  Paper,
   Divider,
   Box,
-  Chip
+  Accordion,
+  AccordionSummary,
+  AccordionDetails
 } from '@mui/material';
+import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import { PatientHistory } from '../types';
 
 interface PatientHistoryListProps {
-  historyItems: PatientHistory[];
+  history: PatientHistory[];
 }
 
-export const PatientHistoryList: React.FC<PatientHistoryListProps> = ({ historyItems }) => {
-  // Sort history items by date (newest first)
-  const sortedHistoryItems = [...historyItems].sort((a, b) => 
-    new Date(b.date).getTime() - new Date(a.date).getTime()
+export const PatientHistoryList: React.FC<PatientHistoryListProps> = ({ history }) => {
+  // Sort history by date (newest first)
+  const sortedHistory = [...history].sort((a, b) => 
+    b.date.getTime() - a.date.getTime()
   );
 
+  // Format the date for display
+  const formatDate = (date: Date): string => {
+    return date.toLocaleDateString([], { 
+      year: 'numeric', 
+      month: 'long', 
+      day: 'numeric'
+    });
+  };
+
   return (
-    <Paper>
-      <Box sx={{ p: 2 }}>
-        <Typography variant="h6" gutterBottom>
-          Patient History
-        </Typography>
-        
-        {sortedHistoryItems.length === 0 ? (
-          <Typography color="text.secondary">No history records found.</Typography>
-        ) : (
-          <List sx={{ width: '100%' }}>
-            {sortedHistoryItems.map((item, index) => (
-              <React.Fragment key={item.id}>
-                {index > 0 && <Divider />}
-                <ListItem alignItems="flex-start">
-                  <ListItemText
-                    primary={
-                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                        <Typography variant="subtitle1" component="span">
-                          {item.type}
-                        </Typography>
-                        <Chip 
-                          label={item.category} 
-                          size="small" 
-                          color="primary" 
-                        />
-                        <Typography variant="body2" color="text.secondary">
-                          {new Date(item.date).toLocaleDateString()}
-                        </Typography>
-                      </Box>
-                    }
-                    secondary={
-                      <>
-                        <Typography variant="body2" component="span">
-                          {item.description}
-                        </Typography>
-                        <Typography 
-                          variant="body2" 
-                          color="text.secondary" 
-                          sx={{ mt: 1, display: 'block' }}
-                        >
-                          By {item.recordedBy}
-                        </Typography>
-                      </>
-                    }
-                  />
-                </ListItem>
-              </React.Fragment>
-            ))}
-          </List>
-        )}
-      </Box>
-    </Paper>
+    <Box>
+      {sortedHistory.length > 0 ? (
+        <List disablePadding>
+          {sortedHistory.map((entry, index) => (
+            <React.Fragment key={entry.id}>
+              <Accordion>
+                <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+                  <Box sx={{ width: '100%', display: 'flex', justifyContent: 'space-between' }}>
+                    <Typography variant="subtitle1" fontWeight="bold">
+                      {formatDate(entry.date)}
+                    </Typography>
+                    <Typography variant="body2" color="text.secondary">
+                      {entry.reason}
+                    </Typography>
+                  </Box>
+                </AccordionSummary>
+                <AccordionDetails>
+                  <Box sx={{ p: 2 }}>
+                    <Typography variant="body1" gutterBottom>
+                      <strong>Diagnosis:</strong> {entry.diagnosis}
+                    </Typography>
+                    <Typography variant="body1" gutterBottom>
+                      <strong>Treatment:</strong> {entry.treatment}
+                    </Typography>
+                    {entry.notes && (
+                      <Typography variant="body1" sx={{ mt: 2 }}>
+                        <strong>Notes:</strong> {entry.notes}
+                      </Typography>
+                    )}
+                  </Box>
+                </AccordionDetails>
+              </Accordion>
+              {index < sortedHistory.length - 1 && <Divider />}
+            </React.Fragment>
+          ))}
+        </List>
+      ) : (
+        <Paper sx={{ p: 3 }}>
+          <Typography align="center">No history records available</Typography>
+        </Paper>
+      )}
+    </Box>
   );
 }; 

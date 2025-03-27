@@ -42,10 +42,6 @@ export interface Medication {
   timestamp: Date;
   administered: boolean;
   administeredBy: string;
-  status: 'Active' | 'Completed' | 'Discontinued';
-  schedule: string;
-  dateAdded: Date;
-  notes: string;
 }
 
 // Patient history type
@@ -56,8 +52,4 @@ export interface PatientHistory {
   diagnosis: string;
   treatment: string;
   notes: string;
-  type: string;
-  category: string;
-  description: string;
-  recordedBy: string;
 } 

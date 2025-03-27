@@ -6,8 +6,6 @@ import { Layout } from './components/Layout';
 import { Login } from './pages/Login';
 import { PatientsList } from './pages/PatientsList';
 import { PatientDetail } from './pages/PatientDetail';
-import { AddPatient } from './pages/AddPatient';
-import PatientMonitoring from './pages/PatientMonitoring';
 import { useAuth } from './contexts/AuthContext';
 
 // Create a theme instance
@@ -64,9 +62,7 @@ function App() {
             {/* Private routes */}
             <Route path="/" element={<PrivateLayout><PatientsList /></PrivateLayout>} />
             <Route path="/patients" element={<PrivateLayout><PatientsList /></PrivateLayout>} />
-            <Route path="/patients/new" element={<PrivateLayout><AddPatient /></PrivateLayout>} />
             <Route path="/patients/:patientId" element={<PrivateLayout><PatientDetail /></PrivateLayout>} />
-            <Route path="/patients/:patientId/monitoring" element={<PrivateLayout><PatientMonitoring /></PrivateLayout>} />
             
             {/* Redirect any unknown routes to home */}
             <Route path="*" element={<Navigate to="/" />} />
