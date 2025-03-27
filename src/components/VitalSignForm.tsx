@@ -13,7 +13,6 @@ import {
   Alert,
   Stack,
   Slider,
-  Rating,
   Tooltip
 } from '@mui/material';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
@@ -42,7 +41,6 @@ export const VitalSignForm: React.FC<VitalSignFormProps> = ({ patientId, onVital
   const [meanPressure, setMeanPressure] = useState<string>('');
   const [oxygenSaturation, setOxygenSaturation] = useState<string>('');
   const [etCO2, setEtCO2] = useState<string>('');
-  const [painScore, setPainScore] = useState<number | null>(0);
   const [anestheticDepth, setAnestheticDepth] = useState<number>(3);
   const [notes, setNotes] = useState('');
 
@@ -93,7 +91,7 @@ export const VitalSignForm: React.FC<VitalSignFormProps> = ({ patientId, onVital
         },
         oxygenSaturation: oxygenSaturation ? parseInt(oxygenSaturation) : null,
         etCO2: etCO2 ? parseInt(etCO2) : null,
-        painScore: painScore,
+        painScore: null,
         anestheticDepth: anestheticDepth,
         notes
       };
@@ -110,7 +108,6 @@ export const VitalSignForm: React.FC<VitalSignFormProps> = ({ patientId, onVital
       setMeanPressure('');
       setOxygenSaturation('');
       setEtCO2('');
-      setPainScore(0);
       setAnestheticDepth(3);
       setNotes('');
       
@@ -172,10 +169,6 @@ export const VitalSignForm: React.FC<VitalSignFormProps> = ({ patientId, onVital
           
           <form onSubmit={handleSubmit}>
             <Stack spacing={3}>
-              <Typography variant="subtitle1" fontWeight="bold">
-                Basic Vital Signs
-              </Typography>
-              
               <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 2 }}>
                 <TextField
                   required
@@ -226,10 +219,6 @@ export const VitalSignForm: React.FC<VitalSignFormProps> = ({ patientId, onVital
                   sx={{ flex: '1 1 200px' }}
                 />
               </Box>
-              
-              <Typography variant="subtitle1" fontWeight="bold">
-                Blood Pressure & Oxygenation
-              </Typography>
               
               <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 2 }}>
                 <TextField
@@ -316,25 +305,7 @@ export const VitalSignForm: React.FC<VitalSignFormProps> = ({ patientId, onVital
                 />
               </Box>
               
-              <Typography variant="subtitle1" fontWeight="bold">
-                Anesthetic Assessment
-              </Typography>
-              
               <Box sx={{ px: 2 }}>
-                <Typography gutterBottom>Pain Score (0-10)</Typography>
-                <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
-                  <Typography sx={{ mr: 2, minWidth: '30px' }}>0</Typography>
-                  <Rating
-                    value={painScore}
-                    onChange={(event, newValue) => {
-                      setPainScore(newValue);
-                    }}
-                    max={10}
-                    sx={{ flex: 1 }}
-                  />
-                  <Typography sx={{ ml: 2, minWidth: '30px' }}>10</Typography>
-                </Box>
-                
                 <Typography gutterBottom>Anesthetic Depth</Typography>
                 <Box sx={{ px: 1 }}>
                   <Slider

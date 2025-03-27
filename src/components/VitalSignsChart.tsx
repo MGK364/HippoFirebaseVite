@@ -62,7 +62,6 @@ export const VitalSignsChart: React.FC<VitalSignsChartProps> = ({ vitalSigns }) 
   const meanData = sortedVitalSigns.map((vs) => vs.bloodPressure.mean);
   const oxygenSaturationData = sortedVitalSigns.map((vs) => vs.oxygenSaturation);
   const etCO2Data = sortedVitalSigns.map((vs) => vs.etCO2);
-  const painScoreData = sortedVitalSigns.map((vs) => vs.painScore);
   const anestheticDepthData = sortedVitalSigns.map((vs) => vs.anestheticDepth);
   
   // Set up chart data
@@ -136,14 +135,6 @@ export const VitalSignsChart: React.FC<VitalSignsChartProps> = ({ vitalSigns }) 
         tension: 0.3,
       },
       {
-        label: 'Pain Score (0-10)',
-        data: painScoreData,
-        borderColor: '#FF9F40',
-        backgroundColor: 'rgba(255, 159, 64, 0.2)',
-        yAxisID: 'score',
-        tension: 0.3,
-      },
-      {
         label: 'Anesthetic Depth (1-5)',
         data: anestheticDepthData,
         borderColor: '#36A2EB',
@@ -163,6 +154,14 @@ export const VitalSignsChart: React.FC<VitalSignsChartProps> = ({ vitalSigns }) 
       mode: 'index',
       intersect: false,
     },
+    layout: {
+      padding: {
+        top: 5,
+        right: 10,
+        bottom: 5,
+        left: 10
+      }
+    },
     plugins: {
       legend: {
         position: 'top',
@@ -171,6 +170,9 @@ export const VitalSignsChart: React.FC<VitalSignsChartProps> = ({ vitalSigns }) 
           boxWidth: 20,
           usePointStyle: true,
           padding: 10,
+          font: {
+            size: 11
+          }
         },
       },
       tooltip: {
@@ -188,6 +190,11 @@ export const VitalSignsChart: React.FC<VitalSignsChartProps> = ({ vitalSigns }) 
         ticks: {
           maxRotation: 45,
           minRotation: 0,
+          font: {
+            size: 10
+          },
+          autoSkip: true,
+          maxTicksLimit: 10
         },
       },
       temperature: {
@@ -197,12 +204,20 @@ export const VitalSignsChart: React.FC<VitalSignsChartProps> = ({ vitalSigns }) 
         title: {
           display: true,
           text: 'Temperature (°C)',
+          font: {
+            size: 10
+          }
         },
         min: 35,
         max: 42,
         grid: {
           color: theme.palette.divider,
         },
+        ticks: {
+          font: {
+            size: 10
+          }
+        }
       },
       pulse: {
         type: 'linear',
@@ -211,12 +226,20 @@ export const VitalSignsChart: React.FC<VitalSignsChartProps> = ({ vitalSigns }) 
         title: {
           display: true,
           text: 'Heart Rate (bpm)',
+          font: {
+            size: 10
+          }
         },
         min: 40,
         max: 200,
         grid: {
           drawOnChartArea: false,
         },
+        ticks: {
+          font: {
+            size: 10
+          }
+        }
       },
       respiration: {
         type: 'linear',
@@ -225,9 +248,17 @@ export const VitalSignsChart: React.FC<VitalSignsChartProps> = ({ vitalSigns }) 
         title: {
           display: true,
           text: 'Respiratory Rate (bpm)',
+          font: {
+            size: 10
+          }
         },
         min: 0,
         max: 60,
+        ticks: {
+          font: {
+            size: 10
+          }
+        }
       },
       bloodPressure: {
         type: 'linear',
@@ -236,12 +267,20 @@ export const VitalSignsChart: React.FC<VitalSignsChartProps> = ({ vitalSigns }) 
         title: {
           display: true,
           text: 'Blood Pressure (mmHg)',
+          font: {
+            size: 10
+          }
         },
         min: 0,
         max: 200,
         grid: {
           drawOnChartArea: false,
         },
+        ticks: {
+          font: {
+            size: 10
+          }
+        }
       },
       saturation: {
         type: 'linear',
@@ -250,12 +289,20 @@ export const VitalSignsChart: React.FC<VitalSignsChartProps> = ({ vitalSigns }) 
         title: {
           display: true,
           text: 'SpO2 (%)',
+          font: {
+            size: 10
+          }
         },
         min: 80,
         max: 100,
         grid: {
           drawOnChartArea: false,
         },
+        ticks: {
+          font: {
+            size: 10
+          }
+        }
       },
       etCO2: {
         type: 'linear',
@@ -264,12 +311,20 @@ export const VitalSignsChart: React.FC<VitalSignsChartProps> = ({ vitalSigns }) 
         title: {
           display: true,
           text: 'ETCO2 (mmHg)',
+          font: {
+            size: 10
+          }
         },
         min: 20,
         max: 80,
         grid: {
           drawOnChartArea: false,
         },
+        ticks: {
+          font: {
+            size: 10
+          }
+        }
       },
       score: {
         type: 'linear',
@@ -277,13 +332,21 @@ export const VitalSignsChart: React.FC<VitalSignsChartProps> = ({ vitalSigns }) 
         position: 'right',
         title: {
           display: true,
-          text: 'Score (Pain & Depth)',
+          text: 'Anesthetic Depth (1-5)',
+          font: {
+            size: 10
+          }
         },
         min: 0,
-        max: 10,
+        max: 5,
         grid: {
           drawOnChartArea: false,
         },
+        ticks: {
+          font: {
+            size: 10
+          }
+        }
       },
     },
     animation: {
@@ -300,13 +363,24 @@ export const VitalSignsChart: React.FC<VitalSignsChartProps> = ({ vitalSigns }) 
     },
   };
   
+  // Force resize on mount and when dependencies change
+  useEffect(() => {
+    if (chartRef.current) {
+      chartRef.current.resize();
+    }
+  }, [chartWidth, vitalSigns]);
+  
   // Use ResizeObserver to update chart when container size changes
   useEffect(() => {
     if (!containerRef.current) return;
 
+    // Initial sizing
+    setChartWidth(containerRef.current.clientWidth);
+    
     const resizeObserver = new ResizeObserver(entries => {
       for (const entry of entries) {
-        setChartWidth(entry.contentRect.width);
+        const newWidth = entry.contentRect.width;
+        setChartWidth(newWidth);
         if (chartRef.current) {
           chartRef.current.resize();
         }
@@ -314,16 +388,33 @@ export const VitalSignsChart: React.FC<VitalSignsChartProps> = ({ vitalSigns }) 
     });
 
     resizeObserver.observe(containerRef.current);
+    
+    // Also observe the window for any layout changes
+    const handleWindowResize = () => {
+      if (containerRef.current && chartRef.current) {
+        setChartWidth(containerRef.current.clientWidth);
+        chartRef.current.resize();
+      }
+    };
+    
+    window.addEventListener('resize', handleWindowResize);
 
     return () => {
       if (containerRef.current) {
         resizeObserver.unobserve(containerRef.current);
       }
+      window.removeEventListener('resize', handleWindowResize);
     };
   }, []);
 
   return (
-    <Box sx={{ width: '100%', paddingBottom: 2 }}>
+    <Box sx={{ 
+      width: '100%', 
+      paddingBottom: 2, 
+      height: 'auto',
+      display: 'flex',
+      flexDirection: 'column'
+    }}>
       <Typography variant="h6" component="h2" gutterBottom>
         Vital Signs Chart
       </Typography>
@@ -339,6 +430,13 @@ export const VitalSignsChart: React.FC<VitalSignsChartProps> = ({ vitalSigns }) 
             width: '100%',
             height: '500px',
             position: 'relative',
+            marginLeft: 'auto',
+            marginRight: 'auto',
+            maxWidth: '100%',
+            overflow: 'hidden',
+            '& canvas': {
+              width: '100% !important'
+            }
           }}
         >
           <Line
