@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Box,
   Button,
@@ -11,7 +11,10 @@ import {
   Divider,
   InputAdornment,
   Alert,
-  Stack
+  Stack,
+  Slider,
+  Rating,
+  Tooltip
 } from '@mui/material';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import ExpandLessIcon from '@mui/icons-material/ExpandLess';
@@ -36,8 +39,25 @@ export const VitalSignForm: React.FC<VitalSignFormProps> = ({ patientId, onVital
   const [respiratoryRate, setRespiratoryRate] = useState<string>('');
   const [systolic, setSystolic] = useState<string>('');
   const [diastolic, setDiastolic] = useState<string>('');
+  const [meanPressure, setMeanPressure] = useState<string>('');
   const [oxygenSaturation, setOxygenSaturation] = useState<string>('');
+  const [etCO2, setEtCO2] = useState<string>('');
+  const [painScore, setPainScore] = useState<number | null>(0);
+  const [anestheticDepth, setAnestheticDepth] = useState<number>(3);
   const [notes, setNotes] = useState('');
+
+  // Calculate MAP automatically when systolic or diastolic changes
+  useEffect(() => {
+    if (systolic && diastolic) {
+      // MAP ≈ DBP + 1/3(SBP - DBP)
+      const sbp = parseFloat(systolic);
+      const dbp = parseFloat(diastolic);
+      if (!isNaN(sbp) && !isNaN(dbp)) {
+        const map = Math.round(dbp + (1/3) * (sbp - dbp));
+        setMeanPressure(map.toString());
+      }
+    }
+  }, [systolic, diastolic]);
 
   const toggleExpanded = () => {
     setExpanded(!expanded);
@@ -55,7 +75,7 @@ export const VitalSignForm: React.FC<VitalSignFormProps> = ({ patientId, onVital
       setError('');
       
       // Validate inputs
-      if (!temperature || !heartRate || !respiratoryRate || !systolic || !diastolic || !oxygenSaturation) {
+      if (!temperature || !heartRate || !respiratoryRate || !systolic || !diastolic) {
         setError('Please fill all required fields');
         return;
       }
@@ -69,8 +89,12 @@ export const VitalSignForm: React.FC<VitalSignFormProps> = ({ patientId, onVital
         bloodPressure: {
           systolic: parseInt(systolic),
           diastolic: parseInt(diastolic),
+          mean: meanPressure ? parseInt(meanPressure) : null
         },
-        oxygenSaturation: parseInt(oxygenSaturation),
+        oxygenSaturation: oxygenSaturation ? parseInt(oxygenSaturation) : null,
+        etCO2: etCO2 ? parseInt(etCO2) : null,
+        painScore: painScore,
+        anestheticDepth: anestheticDepth,
         notes
       };
 
@@ -83,7 +107,11 @@ export const VitalSignForm: React.FC<VitalSignFormProps> = ({ patientId, onVital
       setRespiratoryRate('');
       setSystolic('');
       setDiastolic('');
+      setMeanPressure('');
       setOxygenSaturation('');
+      setEtCO2('');
+      setPainScore(0);
+      setAnestheticDepth(3);
       setNotes('');
       
       // Show success message
@@ -99,6 +127,14 @@ export const VitalSignForm: React.FC<VitalSignFormProps> = ({ patientId, onVital
       setLoading(false);
     }
   };
+
+  const anestheticDepthMarks = [
+    { value: 1, label: 'Light' },
+    { value: 2, label: '' },
+    { value: 3, label: 'Moderate' },
+    { value: 4, label: '' },
+    { value: 5, label: 'Deep' },
+  ];
 
   return (
     <Paper sx={{ mb: 3 }}>
@@ -135,7 +171,11 @@ export const VitalSignForm: React.FC<VitalSignFormProps> = ({ patientId, onVital
           )}
           
           <form onSubmit={handleSubmit}>
-            <Stack spacing={2}>
+            <Stack spacing={3}>
+              <Typography variant="subtitle1" fontWeight="bold">
+                Basic Vital Signs
+              </Typography>
+              
               <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 2 }}>
                 <TextField
                   required
@@ -187,10 +227,14 @@ export const VitalSignForm: React.FC<VitalSignFormProps> = ({ patientId, onVital
                 />
               </Box>
               
+              <Typography variant="subtitle1" fontWeight="bold">
+                Blood Pressure & Oxygenation
+              </Typography>
+              
               <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 2 }}>
                 <TextField
                   required
-                  label="Systolic Blood Pressure"
+                  label="Systolic BP"
                   type="number"
                   value={systolic}
                   onChange={(e) => setSystolic(e.target.value)}
@@ -202,11 +246,11 @@ export const VitalSignForm: React.FC<VitalSignFormProps> = ({ patientId, onVital
                     min: 60,
                     max: 300
                   }}
-                  sx={{ flex: '1 1 200px' }}
+                  sx={{ flex: '1 1 150px' }}
                 />
                 <TextField
                   required
-                  label="Diastolic Blood Pressure"
+                  label="Diastolic BP"
                   type="number"
                   value={diastolic}
                   onChange={(e) => setDiastolic(e.target.value)}
@@ -218,11 +262,30 @@ export const VitalSignForm: React.FC<VitalSignFormProps> = ({ patientId, onVital
                     min: 30,
                     max: 200
                   }}
-                  sx={{ flex: '1 1 200px' }}
+                  sx={{ flex: '1 1 150px' }}
                 />
+                <Tooltip title="Mean Arterial Pressure (auto-calculated)">
+                  <TextField
+                    label="Mean BP"
+                    type="number"
+                    value={meanPressure}
+                    onChange={(e) => setMeanPressure(e.target.value)}
+                    InputProps={{
+                      endAdornment: <InputAdornment position="end">mmHg</InputAdornment>,
+                    }}
+                    inputProps={{
+                      step: 1,
+                      min: 40,
+                      max: 200
+                    }}
+                    sx={{ flex: '1 1 150px' }}
+                  />
+                </Tooltip>
+              </Box>
+              
+              <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 2 }}>
                 <TextField
-                  required
-                  label="Oxygen Saturation"
+                  label="SpO2"
                   type="number"
                   value={oxygenSaturation}
                   onChange={(e) => setOxygenSaturation(e.target.value)}
@@ -236,6 +299,53 @@ export const VitalSignForm: React.FC<VitalSignFormProps> = ({ patientId, onVital
                   }}
                   sx={{ flex: '1 1 200px' }}
                 />
+                <TextField
+                  label="ETCO2"
+                  type="number"
+                  value={etCO2}
+                  onChange={(e) => setEtCO2(e.target.value)}
+                  InputProps={{
+                    endAdornment: <InputAdornment position="end">mmHg</InputAdornment>,
+                  }}
+                  inputProps={{
+                    step: 1,
+                    min: 20,
+                    max: 80
+                  }}
+                  sx={{ flex: '1 1 200px' }}
+                />
+              </Box>
+              
+              <Typography variant="subtitle1" fontWeight="bold">
+                Anesthetic Assessment
+              </Typography>
+              
+              <Box sx={{ px: 2 }}>
+                <Typography gutterBottom>Pain Score (0-10)</Typography>
+                <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
+                  <Typography sx={{ mr: 2, minWidth: '30px' }}>0</Typography>
+                  <Rating
+                    value={painScore}
+                    onChange={(event, newValue) => {
+                      setPainScore(newValue);
+                    }}
+                    max={10}
+                    sx={{ flex: 1 }}
+                  />
+                  <Typography sx={{ ml: 2, minWidth: '30px' }}>10</Typography>
+                </Box>
+                
+                <Typography gutterBottom>Anesthetic Depth</Typography>
+                <Box sx={{ px: 1 }}>
+                  <Slider
+                    value={anestheticDepth}
+                    step={1}
+                    marks={anestheticDepthMarks}
+                    min={1}
+                    max={5}
+                    onChange={(e, newValue) => setAnestheticDepth(newValue as number)}
+                  />
+                </Box>
               </Box>
               
               <TextField
@@ -245,7 +355,7 @@ export const VitalSignForm: React.FC<VitalSignFormProps> = ({ patientId, onVital
                 rows={3}
                 value={notes}
                 onChange={(e) => setNotes(e.target.value)}
-                placeholder="Optional notes about the patient's condition"
+                placeholder="Optional notes about patient condition, treatments, observations"
               />
               
               <Box sx={{ display: 'flex', justifyContent: 'flex-end' }}>
@@ -254,6 +364,7 @@ export const VitalSignForm: React.FC<VitalSignFormProps> = ({ patientId, onVital
                   variant="contained"
                   color="primary"
                   disabled={loading}
+                  size="large"
                 >
                   {loading ? 'Saving...' : 'Save Vital Signs'}
                 </Button>

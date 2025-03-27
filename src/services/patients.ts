@@ -186,6 +186,10 @@ const createMockVitalSigns = (patientId: string): VitalSign[] => {
     const timestamp = new Date(now);
     timestamp.setMinutes(now.getMinutes() - index * 15); // Each entry 15 minutes apart
     
+    const systolic = 110 + Math.floor(Math.random() * 30); // 110-140 mmHg
+    const diastolic = 70 + Math.floor(Math.random() * 20); // 70-90 mmHg
+    const mean = Math.round(diastolic + (1/3) * (systolic - diastolic)); // Calculate mean arterial pressure
+    
     return {
       id: `vs-${patientId}-${index}`,
       timestamp,
@@ -193,10 +197,14 @@ const createMockVitalSigns = (patientId: string): VitalSign[] => {
       heartRate: 70 + Math.floor(Math.random() * 30), // 70-100 bpm
       respiratoryRate: 15 + Math.floor(Math.random() * 10), // 15-25 bpm
       bloodPressure: {
-        systolic: 110 + Math.floor(Math.random() * 30), // 110-140 mmHg
-        diastolic: 70 + Math.floor(Math.random() * 20), // 70-90 mmHg
+        systolic: systolic,
+        diastolic: diastolic,
+        mean: mean
       },
       oxygenSaturation: 95 + Math.floor(Math.random() * 5), // 95-100%
+      etCO2: 35 + Math.floor(Math.random() * 10), // 35-45 mmHg
+      painScore: Math.floor(Math.random() * 5), // 0-4
+      anestheticDepth: Math.floor(Math.random() * 3) + 2, // 2-4 (light to deep)
       notes: index % 3 === 0 ? 'Patient stable' : ''
     };
   });

@@ -27,8 +27,12 @@ export interface VitalSign {
   bloodPressure: {
     systolic: number | null;
     diastolic: number | null;
+    mean: number | null;  // Mean Arterial Pressure (MAP)
   };
   oxygenSaturation: number | null;
+  etCO2: number | null;   // End-tidal CO2
+  painScore: number | null; // Pain score on scale 0-10
+  anestheticDepth: number | null; // Anesthetic depth score
   notes: string;
 }
 
