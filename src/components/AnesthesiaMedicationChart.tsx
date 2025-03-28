@@ -408,7 +408,7 @@ const AnesthesiaMedicationChart: React.FC<AnesthesiaMedicationChartProps> = ({
 
   return (
     <Card sx={{ mb: 3, width: '100%' }}>
-      <CardContent>
+      <CardContent sx={{ p: 3 }}>
         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
           <Typography variant="h6">Medication Administration</Typography>
           <Box>
@@ -442,7 +442,7 @@ const AnesthesiaMedicationChart: React.FC<AnesthesiaMedicationChartProps> = ({
             border: '1px solid',
             borderColor: 'divider',
             borderRadius: 1,
-            p: 1
+            p: 2
           }}
         >
           {/* Time axis */}
@@ -541,7 +541,7 @@ const AnesthesiaMedicationChart: React.FC<AnesthesiaMedicationChartProps> = ({
             border: '1px solid',
             borderColor: 'divider',
             borderRadius: 1,
-            p: 1
+            p: 2
           }}
         >
           {/* Time axis */}

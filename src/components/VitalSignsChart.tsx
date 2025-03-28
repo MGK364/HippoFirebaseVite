@@ -428,7 +428,7 @@ export const VitalSignsChart: React.FC<VitalSignsChartProps> = ({
           style={{
             width: '100%',
             height: '500px',
-            padding: '0',
+            padding: '16px',
             margin: '0',
             position: 'relative'
           }}
