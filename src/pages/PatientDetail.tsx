@@ -27,7 +27,6 @@ import {
 import { Patient, VitalSign, Medication, PatientHistory, AnesthesiaBolus, AnesthesiaCRI, MedicalSummary, AnesthesiaPlan } from '../types';
 import { VitalSignsChart } from '../components/VitalSignsChart';
 import { MedicationList } from '../components/MedicationList';
-import { PatientHistoryList } from '../components/PatientHistoryList';
 import { VitalSignForm } from '../components/VitalSignForm';
 import AnesthesiaMedicationChart from '../components/AnesthesiaMedicationChart';
 import MedicalSummaryView from '../components/MedicalSummaryView';
@@ -259,7 +258,6 @@ export const PatientDetail: React.FC = () => {
               <Tab label="Vital Signs" />
               <Tab label="Anesthesia Plan" />
               <Tab label="Medical Summary" />
-              <Tab label="History" />
             </Tabs>
             
             <TabPanel value={activeTab} index={0}>
@@ -343,33 +341,6 @@ export const PatientDetail: React.FC = () => {
                       summary={medicalSummary} 
                       loading={medicalSummaryLoading} 
                     />
-                  </div>
-                </Card>
-              </div>
-            </TabPanel>
-            
-            <TabPanel value={activeTab} index={3}>
-              <div style={{ width: '100%' }}>
-                <Card>
-                  <CardHeader 
-                    title="Patient History" 
-                    action={
-                      <Button 
-                        variant="contained" 
-                        size="small"
-                        onClick={() => navigate(`/patients/${patientId}/history/new`)}
-                      >
-                        Add History Entry
-                      </Button>
-                    }
-                  />
-                  <Divider />
-                  <div style={{ width: '100%', padding: '16px' }}>
-                    {history.length > 0 ? (
-                      <PatientHistoryList history={history} />
-                    ) : (
-                      <Typography>No history data available</Typography>
-                    )}
                   </div>
                 </Card>
               </div>
