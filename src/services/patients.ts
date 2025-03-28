@@ -443,6 +443,10 @@ export const addHistoryEntry = async (patientId: string, history: Omit<PatientHi
 
 // Get all anesthesia boluses for a patient
 export const getAnesthesiaBoluses = async (patientId: string): Promise<AnesthesiaBolus[]> => {
+  if (DEVELOPMENT_MODE) {
+    return createMockAnesthesiaBoluses(patientId);
+  }
+  
   try {
     const bolusesRef = getAnesthesiaBolusesRef(patientId);
     const bolusesSnapshot = await getDocs(bolusesRef);
@@ -463,6 +467,10 @@ export const getAnesthesiaBoluses = async (patientId: string): Promise<Anesthesi
 
 // Get all anesthesia CRIs for a patient
 export const getAnesthesiaCRIs = async (patientId: string): Promise<AnesthesiaCRI[]> => {
+  if (DEVELOPMENT_MODE) {
+    return createMockAnesthesiaCRIs(patientId);
+  }
+  
   try {
     const crisRef = getAnesthesiaCRIsRef(patientId);
     const crisSnapshot = await getDocs(crisRef);
@@ -484,6 +492,185 @@ export const getAnesthesiaCRIs = async (patientId: string): Promise<AnesthesiaCR
     console.error('Error fetching anesthesia CRI medications:', error);
     return [];
   }
+};
+
+// Create mock anesthesia boluses for development
+const createMockAnesthesiaBoluses = (patientId: string): AnesthesiaBolus[] => {
+  const now = new Date();
+  const boluses: AnesthesiaBolus[] = [];
+  
+  // Create boluses starting from 60 minutes ago
+  // Match with the timeframe of vital signs (createMockVitalSigns creates data every 15 minutes)
+  const bolusNames = ['Propofol', 'Ketamine', 'Hydromorphone', 'Midazolam', 'Atropine'];
+  const adminNames = ['Dr. Smith', 'Dr. Johnson', 'Dr. Williams'];
+  
+  // Induction dose at beginning
+  boluses.push({
+    id: `bolus-${patientId}-1`,
+    name: 'Propofol',
+    dose: 4.0,
+    unit: 'mg/kg',
+    timestamp: new Date(now.getTime() - 60 * 60000), // 60 minutes ago
+    administeredBy: adminNames[0]
+  });
+  
+  // Ketamine for initial analgesia
+  boluses.push({
+    id: `bolus-${patientId}-2`,
+    name: 'Ketamine',
+    dose: 2.0,
+    unit: 'mg/kg',
+    timestamp: new Date(now.getTime() - 59 * 60000), // 59 minutes ago
+    administeredBy: adminNames[0]
+  });
+  
+  // Hydromorphone for analgesia
+  boluses.push({
+    id: `bolus-${patientId}-3`,
+    name: 'Hydromorphone',
+    dose: 0.1,
+    unit: 'mg/kg',
+    timestamp: new Date(now.getTime() - 58 * 60000), // 58 minutes ago
+    administeredBy: adminNames[0]
+  });
+  
+  // Add some additional boluses during the procedure
+  for (let i = 4; i <= 8; i++) {
+    const timeOffset = Math.floor(Math.random() * 50) + 5; // Random time between 5-55 minutes ago
+    const nameIndex = Math.floor(Math.random() * bolusNames.length);
+    const adminIndex = Math.floor(Math.random() * adminNames.length);
+    
+    boluses.push({
+      id: `bolus-${patientId}-${i}`,
+      name: bolusNames[nameIndex],
+      dose: Math.round((Math.random() * 2 + 0.5) * 10) / 10, // Random dose between 0.5-2.5
+      unit: nameIndex === 0 ? 'mg/kg' : nameIndex === 4 ? 'mg' : 'mg/kg',
+      timestamp: new Date(now.getTime() - timeOffset * 60000),
+      administeredBy: adminNames[adminIndex]
+    });
+  }
+  
+  // Sort by timestamp
+  return boluses.sort((a, b) => a.timestamp.getTime() - b.timestamp.getTime());
+};
+
+// Create mock anesthesia CRIs for development
+const createMockAnesthesiaCRIs = (patientId: string): AnesthesiaCRI[] => {
+  const now = new Date();
+  const cris: AnesthesiaCRI[] = [];
+  const adminNames = ['Dr. Smith', 'Dr. Johnson', 'Dr. Williams'];
+  
+  // Ketamine CRI - started at beginning and still running
+  const ketamineCRI: AnesthesiaCRI = {
+    id: `cri-${patientId}-1`,
+    name: 'Ketamine',
+    rate: 10,
+    unit: 'mcg/kg/min',
+    startTime: new Date(now.getTime() - 60 * 60000), // Started 60 minutes ago
+    administeredBy: adminNames[0],
+    rateHistory: [
+      {
+        timestamp: new Date(now.getTime() - 60 * 60000),
+        rate: 10
+      },
+      {
+        timestamp: new Date(now.getTime() - 30 * 60000),
+        rate: 15
+      },
+      {
+        timestamp: new Date(now.getTime() - 15 * 60000),
+        rate: 10
+      }
+    ]
+  };
+  cris.push(ketamineCRI);
+  
+  // Lidocaine CRI - started at beginning and still running
+  const lidocaineCRI: AnesthesiaCRI = {
+    id: `cri-${patientId}-2`,
+    name: 'Lidocaine',
+    rate: 50,
+    unit: 'mcg/kg/min',
+    startTime: new Date(now.getTime() - 55 * 60000), // Started 55 minutes ago
+    administeredBy: adminNames[1],
+    rateHistory: [
+      {
+        timestamp: new Date(now.getTime() - 55 * 60000),
+        rate: 50
+      }
+    ]
+  };
+  cris.push(lidocaineCRI);
+  
+  // Propofol CRI - started and then stopped
+  const propofolCRI: AnesthesiaCRI = {
+    id: `cri-${patientId}-3`,
+    name: 'Propofol',
+    rate: 0.3,
+    unit: 'mg/kg/hr',
+    startTime: new Date(now.getTime() - 50 * 60000), // Started 50 minutes ago
+    endTime: new Date(now.getTime() - 20 * 60000), // Ended 20 minutes ago
+    administeredBy: adminNames[0],
+    rateHistory: [
+      {
+        timestamp: new Date(now.getTime() - 50 * 60000),
+        rate: 0.3
+      },
+      {
+        timestamp: new Date(now.getTime() - 40 * 60000),
+        rate: 0.4
+      },
+      {
+        timestamp: new Date(now.getTime() - 30 * 60000),
+        rate: 0.2
+      }
+    ]
+  };
+  cris.push(propofolCRI);
+  
+  // Lactated Ringers - started at beginning and still running
+  const fluidsCRI: AnesthesiaCRI = {
+    id: `cri-${patientId}-4`,
+    name: 'Lactated Ringers',
+    rate: 10,
+    unit: 'mL/kg/hr',
+    startTime: new Date(now.getTime() - 58 * 60000), // Started 58 minutes ago
+    administeredBy: adminNames[2],
+    rateHistory: [
+      {
+        timestamp: new Date(now.getTime() - 58 * 60000),
+        rate: 10
+      },
+      {
+        timestamp: new Date(now.getTime() - 35 * 60000),
+        rate: 5
+      }
+    ]
+  };
+  cris.push(fluidsCRI);
+  
+  // Fentanyl CRI - started 25 minutes ago and still running
+  const fentanylCRI: AnesthesiaCRI = {
+    id: `cri-${patientId}-5`,
+    name: 'Fentanyl',
+    rate: 5,
+    unit: 'mcg/kg/hr',
+    startTime: new Date(now.getTime() - 25 * 60000), // Started 25 minutes ago
+    administeredBy: adminNames[0],
+    rateHistory: [
+      {
+        timestamp: new Date(now.getTime() - 25 * 60000),
+        rate: 5
+      },
+      {
+        timestamp: new Date(now.getTime() - 10 * 60000),
+        rate: 7
+      }
+    ]
+  };
+  cris.push(fentanylCRI);
+  
+  return cris;
 };
 
 // Add a new anesthesia bolus medication
