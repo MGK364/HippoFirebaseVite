@@ -177,13 +177,38 @@ export const PatientDetail: React.FC = () => {
 
   return (
     <div style={{ width: '100%' }}>
-      <div style={{ marginBottom: '24px', display: 'flex', alignItems: 'center' }}>
-        <IconButton onClick={handleBackClick} style={{ marginRight: '8px' }}>
-          <ArrowBackIcon />
-        </IconButton>
-        <Typography variant="h4" component="h1">
-          Patient Details
-        </Typography>
+      <div style={{ marginBottom: '24px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <div style={{ display: 'flex', alignItems: 'center' }}>
+          <IconButton onClick={handleBackClick} style={{ marginRight: '8px' }}>
+            <ArrowBackIcon />
+          </IconButton>
+          <Typography variant="h4" component="h1">
+            Patient Details
+          </Typography>
+        </div>
+        
+        {patient && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+            <Typography variant="h6" sx={{ fontWeight: 'bold' }}>
+              {patient.name}
+            </Typography>
+            <Chip 
+              label={patient.status} 
+              color={patient.status === 'Active' ? 'success' : 'default'}
+              size="small"
+            />
+            <Chip 
+              label={`ID: ${patient.clientId}`} 
+              variant="outlined" 
+              size="small"
+            />
+            <Chip 
+              label={`Weight: ${patient.weight}`} 
+              variant="outlined" 
+              size="small"
+            />
+          </div>
+        )}
       </div>
 
       {loading ? (
@@ -196,35 +221,6 @@ export const PatientDetail: React.FC = () => {
         </Typography>
       ) : patient ? (
         <>
-          <Paper style={{ marginBottom: '24px', padding: '24px', width: '100%' }}>
-            <div style={{ marginBottom: '16px' }}>
-              <Typography variant="h5" component="h2">
-                {patient.name}
-              </Typography>
-              <div style={{ display: 'flex', gap: '8px', marginTop: '8px' }}>
-                <Chip 
-                  label={patient.status} 
-                  color={patient.status === 'Active' ? 'success' : 'default'}
-                />
-                <Chip label={patient.species} color="primary" />
-              </div>
-            </div>
-            <div>
-              <Typography variant="body1" style={{ marginBottom: '8px' }}>
-                <strong>Client ID:</strong> {patient.clientId}
-              </Typography>
-              <Typography variant="body1" style={{ marginBottom: '8px' }}>
-                <strong>Breed:</strong> {patient.breed}
-              </Typography>
-              <Typography variant="body1" style={{ marginBottom: '8px' }}>
-                <strong>Age:</strong> {patient.age}
-              </Typography>
-              <Typography variant="body1">
-                <strong>Weight:</strong> {patient.weight}
-              </Typography>
-            </div>
-          </Paper>
-
           <Paper style={{ marginBottom: '24px', width: '100%' }}>
             <Tabs 
               value={activeTab} 
