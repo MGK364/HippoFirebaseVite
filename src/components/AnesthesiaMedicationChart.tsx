@@ -385,6 +385,27 @@ const AnesthesiaMedicationChart: React.FC<AnesthesiaMedicationChartProps> = ({
     }
   };
 
+  // Function to calculate vertical position for bolus markers to avoid overlap
+  const calculateBolusVerticalPosition = (timestamp: Date, name: string): number => {
+    // Group similar medications in same row
+    const medicationGroups: { [key: string]: number } = {
+      'Propofol': 0,
+      'Ketamine': 1,
+      'Hydromorphone': 2,
+      'Midazolam': 3,
+      'Atropine': 4,
+      'Glycopyrrolate': 5,
+    };
+    
+    // Get group index for this medication (or default to last group + 1)
+    const groupIndex = medicationGroups[name] !== undefined 
+      ? medicationGroups[name] 
+      : Object.keys(medicationGroups).length;
+    
+    // Return a percentage based on the group (0% = bottom, ~80% = top)
+    return 15 + (groupIndex * 12); // Space rows evenly (roughly 12% apart)
+  };
+
   return (
     <Card sx={{ mb: 3, width: '100%' }}>
       <CardContent>
@@ -515,7 +536,7 @@ const AnesthesiaMedicationChart: React.FC<AnesthesiaMedicationChartProps> = ({
         <Box 
           sx={{ 
             position: 'relative', 
-            height: '80px', 
+            height: '120px', // Increased height to accommodate staggered rows
             mb: 1,
             border: '1px solid',
             borderColor: 'divider',
@@ -539,6 +560,58 @@ const AnesthesiaMedicationChart: React.FC<AnesthesiaMedicationChartProps> = ({
           {/* Time markers */}
           {generateTimeMarkers()}
           
+          {/* Medication group labels on left side */}
+          <Box sx={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: '80px', borderRight: '1px dashed rgba(0,0,0,0.1)', px: 1 }}>
+            {Object.entries({
+              'Propofol': 0,
+              'Ketamine': 1,
+              'Hydromorphone': 2,
+              'Midazolam': 3, 
+              'Atropine': 4
+            }).map(([name, index]) => (
+              <Typography 
+                key={name}
+                variant="caption" 
+                sx={{ 
+                  position: 'absolute',
+                  left: 0,
+                  top: `${15 + (index * 12)}%`,
+                  fontSize: '0.65rem',
+                  color: 'text.secondary',
+                  width: '75px',
+                  textAlign: 'right',
+                  pr: 1,
+                  whiteSpace: 'nowrap',
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis'
+                }}
+              >
+                {name}
+              </Typography>
+            ))}
+          </Box>
+          
+          {/* Horizontal grid lines for medication groups */}
+          {Object.values({
+            'Propofol': 0,
+            'Ketamine': 1,
+            'Hydromorphone': 2,
+            'Midazolam': 3, 
+            'Atropine': 4
+          }).map((index) => (
+            <Box 
+              key={`grid-${index}`}
+              sx={{ 
+                position: 'absolute',
+                left: '80px', 
+                right: 0,
+                top: `${15 + (index * 12)}%`,
+                height: '1px',
+                bgcolor: 'rgba(0,0,0,0.05)'
+              }}
+            />
+          ))}
+          
           {/* Bolus markers */}
           {visibleBoluses.length === 0 ? (
             <Typography variant="body2" sx={{ textAlign: 'center', mt: 2, color: 'text.secondary' }}>
@@ -550,6 +623,9 @@ const AnesthesiaMedicationChart: React.FC<AnesthesiaMedicationChartProps> = ({
               const medication = availableBoluses.find(m => m.name === bolus.name);
               const color = medication?.color || '#9e9e9e';
               
+              // Calculate vertical position based on medication type
+              const verticalPosition = calculateBolusVerticalPosition(bolus.timestamp, bolus.name);
+              
               return (
                 <Tooltip 
                   key={bolus.id}
@@ -558,47 +634,74 @@ const AnesthesiaMedicationChart: React.FC<AnesthesiaMedicationChartProps> = ({
                   <Box 
                     sx={{ 
                       position: 'absolute',
-                      bottom: 2,
+                      top: `${verticalPosition}%`,
                       left: `${calculateTimePosition(bolus.timestamp)}%`,
-                      transform: 'translateX(-50%)',
-                      width: 20,
-                      height: 30,
+                      transform: 'translate(-50%, -50%)',
+                      zIndex: 2,
                       display: 'flex',
                       flexDirection: 'column',
-                      alignItems: 'center',
-                      justifyContent: 'flex-end',
-                      zIndex: 2
+                      alignItems: 'center'
                     }}
                   >
-                    <Box 
-                      sx={{
-                        width: '10px',
-                        height: '10px',
-                        borderRadius: '50%',
-                        bgcolor: color,
-                        mb: 0.5,
-                        boxShadow: 1
-                      }}
-                    />
-                    <Typography 
-                      variant="caption" 
-                      sx={{ 
-                        fontSize: '0.6rem', 
-                        fontWeight: 'bold',
-                        maxWidth: '40px',
-                        whiteSpace: 'nowrap',
-                        overflow: 'hidden',
-                        textOverflow: 'ellipsis',
-                        textAlign: 'center'
-                      }}
-                    >
-                      {bolus.name}
-                    </Typography>
+                    {/* Diamond shape for bolus with dose indicator */}
+                    <Box sx={{ 
+                      width: '20px', 
+                      height: '20px', 
+                      bgcolor: color,
+                      transform: 'rotate(45deg)',
+                      borderRadius: '2px',
+                      display: 'flex',
+                      justifyContent: 'center',
+                      alignItems: 'center',
+                      boxShadow: 1
+                    }}>
+                      <Typography 
+                        variant="caption" 
+                        sx={{ 
+                          color: 'white', 
+                          fontWeight: 'bold',
+                          fontSize: '0.6rem',
+                          transform: 'rotate(-45deg)'
+                        }}
+                      >
+                        {bolus.dose}
+                      </Typography>
+                    </Box>
+                    
+                    {/* Draw line down to time axis */}
+                    <Box sx={{
+                      position: 'absolute',
+                      top: '10px',
+                      width: '1px',
+                      height: `calc(100% - ${verticalPosition}% + 5px)`,
+                      bgcolor: 'rgba(0,0,0,0.1)',
+                      zIndex: 1
+                    }} />
                   </Box>
                 </Tooltip>
               );
             })
           )}
+        </Box>
+        
+        {/* Legend for bolus medications */}
+        <Box sx={{ mt: 1, display: 'flex', flexWrap: 'wrap', gap: 2, justifyContent: 'flex-end' }}>
+          {availableBoluses.slice(0, 5).map((med) => (
+            <Box key={med.name} sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+              <Box 
+                sx={{ 
+                  width: '10px', 
+                  height: '10px', 
+                  bgcolor: med.color,
+                  transform: 'rotate(45deg)',
+                  borderRadius: '1px'
+                }} 
+              />
+              <Typography variant="caption" color="text.secondary">
+                {med.name}
+              </Typography>
+            </Box>
+          ))}
         </Box>
       </CardContent>
       
