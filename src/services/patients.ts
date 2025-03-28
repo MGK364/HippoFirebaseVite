@@ -14,7 +14,7 @@ import {
   setDoc
 } from 'firebase/firestore';
 import { db } from './firebase';
-import { Patient, VitalSign, Medication, PatientHistory, AnesthesiaBolus, AnesthesiaCRI, MedicalSummary } from '../types';
+import { Patient, VitalSign, Medication, PatientHistory, AnesthesiaBolus, AnesthesiaCRI, MedicalSummary, AnesthesiaPlan } from '../types';
 
 // Collection references
 const patientsCollection = 'patients';
@@ -26,6 +26,10 @@ const getHistoryCollection = (patientId: string) => `patients/${patientId}/histo
 const getAnesthesiaMedicationsPath = (patientId: string) => `patients/${patientId}/anesthesiaMedications`;
 const getAnesthesiaBolusesRef = (patientId: string) => collection(db, getAnesthesiaMedicationsPath(patientId), 'boluses');
 const getAnesthesiaCRIsRef = (patientId: string) => collection(db, getAnesthesiaMedicationsPath(patientId), 'cris');
+
+// Path for anesthesia plan
+const getAnesthesiaPlanPath = (patientId: string) => `patients/${patientId}/anesthesiaPlan`;
+const getAnesthesiaPlanRef = (patientId: string) => doc(db, getAnesthesiaPlanPath(patientId), 'current');
 
 // For development, we'll have some mock data
 const MOCK_PATIENTS: Patient[] = [
@@ -854,5 +858,166 @@ const createMockMedicalSummary = (patientId: string): MedicalSummary => {
     clientAuth: true,
     lastUpdated: new Date(),
     updatedBy: 'Dr. Smith'
+  };
+};
+
+// Get anesthesia plan for a patient
+export const getAnesthesiaPlan = async (patientId: string): Promise<AnesthesiaPlan | null> => {
+  if (DEVELOPMENT_MODE) {
+    return createMockAnesthesiaPlan(patientId);
+  }
+  
+  try {
+    const anesthesiaPlanRef = getAnesthesiaPlanRef(patientId);
+    const anesthesiaPlanDoc = await getDoc(anesthesiaPlanRef);
+    
+    if (!anesthesiaPlanDoc.exists()) {
+      return null;
+    }
+    
+    const data = anesthesiaPlanDoc.data();
+    return {
+      id: anesthesiaPlanDoc.id,
+      ...data,
+      createdAt: data.createdAt?.toDate(),
+      updatedAt: data.updatedAt?.toDate(),
+    } as AnesthesiaPlan;
+  } catch (error) {
+    console.error('Error fetching anesthesia plan:', error);
+    return null;
+  }
+};
+
+// Create or update anesthesia plan
+export const updateAnesthesiaPlan = async (patientId: string, plan: Omit<AnesthesiaPlan, 'id'>): Promise<void> => {
+  if (DEVELOPMENT_MODE) {
+    console.log('Updating anesthesia plan in development mode:', plan);
+    return;
+  }
+  
+  try {
+    const anesthesiaPlanRef = getAnesthesiaPlanRef(patientId);
+    await setDoc(anesthesiaPlanRef, {
+      ...plan,
+      updatedAt: serverTimestamp(),
+    });
+  } catch (error) {
+    console.error('Error updating anesthesia plan:', error);
+    throw error;
+  }
+};
+
+// Create a mock anesthesia plan for development
+const createMockAnesthesiaPlan = (patientId: string): AnesthesiaPlan => {
+  return {
+    id: `ap-${patientId}`,
+    patientId,
+    premedications: [
+      {
+        name: 'Hydromorphone',
+        route: 'IM',
+        dosageRange: '0.05-0.1',
+        anticipatedDose: '4',
+        concentration: '',
+        volume: '',
+      },
+      {
+        name: 'Dexmedetomidine',
+        route: 'IM',
+        dosageRange: '2-10',
+        anticipatedDose: '0.125',
+        concentration: '',
+        volume: '',
+      }
+    ],
+    inductionAgents: [
+      {
+        name: 'Propofol',
+        route: 'IV',
+        dosageRange: '1-8',
+        anticipatedDose: '50-250',
+        concentration: '',
+        volume: '',
+      }
+    ],
+    maintenance: '',
+    ivFluids: [
+      {
+        name: 'Plasmalyte',
+        rate: '5',
+        mlPerHr: '235',
+        dropsPerSec: '',
+        bolusVolume: '',
+      }
+    ],
+    cris: [
+      {
+        name: 'Fentanyl',
+        dosageRange: '2-8.5',
+        loadingDose: '0.8/kg',
+      },
+      {
+        name: 'Ketamine',
+        dosageRange: '2-10',
+      }
+    ],
+    otherTechniques: [
+      {
+        name: 'Epidural',
+        drugs: ['Bupivicaine', 'Morphine'],
+        dosage: '1mL/5-7kg',
+        concentration: '0.5%/0.2mL/kg',
+        volume: '10mL=0.2mL/kg',
+      },
+      {
+        name: 'Nocita',
+        drugs: ['(PV-CRI-Max)'],
+        dosage: '0.1mg/kg',
+        volume: '0.05mL',
+      }
+    ],
+    totalBloodVolume: '4,230',
+    ventilator: false,
+    emergencyDrugs: [
+      {
+        name: 'Glycopyrrolate',
+        dose: '0.25-0.4',
+      },
+      {
+        name: 'Atropine',
+        dose: '0.04-1.88',
+      },
+      {
+        name: 'Epinephrine',
+        dose: '0.47',
+      },
+      {
+        name: 'Lidocaine',
+        dose: '94',
+      }
+    ],
+    tidalVolume: '470-940',
+    respRate: '10-20',
+    recoveryArea: 'Anesthesia',
+    monitoringPlan: {
+      spo2: true,
+      temp: true,
+      ecg: true,
+      etco2: true,
+      ibp: true,
+      nibp: false,
+      doppler: true,
+      arterialLine: true,
+      centralLine: false,
+      ivcs: {
+        longTerm: true,
+        shortTerm: false,
+        secondIV: true,
+      },
+    },
+    postOpPlan: '',
+    planApproval: '',
+    createdBy: 'Mock User',
+    createdAt: new Date(),
   };
 }; 

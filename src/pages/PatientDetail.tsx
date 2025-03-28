@@ -21,15 +21,17 @@ import {
   getPatientHistory, 
   getAnesthesiaBoluses,
   getAnesthesiaCRIs,
-  getMedicalSummary
+  getMedicalSummary,
+  getAnesthesiaPlan
 } from '../services/patients';
-import { Patient, VitalSign, Medication, PatientHistory, AnesthesiaBolus, AnesthesiaCRI, MedicalSummary } from '../types';
+import { Patient, VitalSign, Medication, PatientHistory, AnesthesiaBolus, AnesthesiaCRI, MedicalSummary, AnesthesiaPlan } from '../types';
 import { VitalSignsChart } from '../components/VitalSignsChart';
 import { MedicationList } from '../components/MedicationList';
 import { PatientHistoryList } from '../components/PatientHistoryList';
 import { VitalSignForm } from '../components/VitalSignForm';
 import AnesthesiaMedicationChart from '../components/AnesthesiaMedicationChart';
 import MedicalSummaryView from '../components/MedicalSummaryView';
+import AnesthesiaPlanView from '../components/AnesthesiaPlanView';
 import { useAuth } from '../contexts/AuthContext';
 
 interface TabPanelProps {
@@ -70,7 +72,9 @@ export const PatientDetail: React.FC = () => {
   const [anesthesiaBoluses, setAnesthesiaBoluses] = useState<AnesthesiaBolus[]>([]);
   const [anesthesiaCRIs, setAnesthesiaCRIs] = useState<AnesthesiaCRI[]>([]);
   const [medicalSummary, setMedicalSummary] = useState<MedicalSummary | null>(null);
+  const [anesthesiaPlan, setAnesthesiaPlan] = useState<AnesthesiaPlan | null>(null);
   const [medicalSummaryLoading, setMedicalSummaryLoading] = useState(true);
+  const [anesthesiaPlanLoading, setAnesthesiaPlanLoading] = useState(true);
   const [activeTab, setActiveTab] = useState(0);
   
   // State to track visible time range for charts
@@ -111,6 +115,7 @@ export const PatientDetail: React.FC = () => {
     try {
       setLoading(true);
       setMedicalSummaryLoading(true);
+      setAnesthesiaPlanLoading(true);
       
       // Fetch patient details
       const patientData = await getPatient(patientId);
@@ -144,6 +149,11 @@ export const PatientDetail: React.FC = () => {
       const summaryData = await getMedicalSummary(patientId);
       setMedicalSummary(summaryData);
       setMedicalSummaryLoading(false);
+      
+      // Fetch anesthesia plan
+      const planData = await getAnesthesiaPlan(patientId);
+      setAnesthesiaPlan(planData);
+      setAnesthesiaPlanLoading(false);
       
       setError('');
     } catch (err) {
@@ -240,9 +250,9 @@ export const PatientDetail: React.FC = () => {
               indicatorColor="primary"
             >
               <Tab label="Vital Signs" />
-              <Tab label="Medications" />
-              <Tab label="Patient History" />
+              <Tab label="Anesthesia Plan" />
               <Tab label="Medical Summary" />
+              <Tab label="History" />
             </Tabs>
             
             <TabPanel value={activeTab} index={0}>
@@ -281,30 +291,56 @@ export const PatientDetail: React.FC = () => {
               <div style={{ width: '100%' }}>
                 <Card>
                   <CardHeader 
-                    title="Medications" 
+                    title="Anesthesia and Pain Management Plan" 
                     action={
                       <Button 
                         variant="contained" 
                         size="small"
-                        onClick={() => navigate(`/patients/${patientId}/medications/new`)}
+                        onClick={() => navigate(`/patients/${patientId}/anesthesia-plan/edit`)}
                       >
-                        Add Medication
+                        Edit Plan
                       </Button>
                     }
                   />
                   <Divider />
                   <div style={{ width: '100%', padding: '16px' }}>
-                    {medications.length > 0 ? (
-                      <MedicationList medications={medications} patientId={patientId} />
-                    ) : (
-                      <Typography>No medications data available</Typography>
-                    )}
+                    <AnesthesiaPlanView 
+                      plan={anesthesiaPlan} 
+                      loading={anesthesiaPlanLoading} 
+                      patientWeight={patient.weight}
+                    />
                   </div>
                 </Card>
               </div>
             </TabPanel>
             
             <TabPanel value={activeTab} index={2}>
+              <div style={{ width: '100%' }}>
+                <Card>
+                  <CardHeader 
+                    title="Medical Summary" 
+                    action={
+                      <Button 
+                        variant="contained" 
+                        size="small"
+                        onClick={() => navigate(`/patients/${patientId}/medical-summary/edit`)}
+                      >
+                        Edit Medical Summary
+                      </Button>
+                    }
+                  />
+                  <Divider />
+                  <div style={{ width: '100%', padding: '16px' }}>
+                    <MedicalSummaryView 
+                      summary={medicalSummary} 
+                      loading={medicalSummaryLoading} 
+                    />
+                  </div>
+                </Card>
+              </div>
+            </TabPanel>
+            
+            <TabPanel value={activeTab} index={3}>
               <div style={{ width: '100%' }}>
                 <Card>
                   <CardHeader 
@@ -326,32 +362,6 @@ export const PatientDetail: React.FC = () => {
                     ) : (
                       <Typography>No history data available</Typography>
                     )}
-                  </div>
-                </Card>
-              </div>
-            </TabPanel>
-            
-            <TabPanel value={activeTab} index={3}>
-              <div style={{ width: '100%' }}>
-                <Card>
-                  <CardHeader 
-                    title="Medical Summary" 
-                    action={
-                      <Button 
-                        variant="contained" 
-                        size="small"
-                        onClick={() => navigate(`/patients/${patientId}/medical-summary/edit`)}
-                      >
-                        Edit Medical Summary
-                      </Button>
-                    }
-                  />
-                  <Divider />
-                  <div style={{ width: '100%', padding: '16px' }}>
-                    <MedicalSummaryView 
-                      summary={medicalSummary} 
-                      loading={medicalSummaryLoading} 
-                    />
                   </div>
                 </Card>
               </div>

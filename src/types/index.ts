@@ -157,4 +157,104 @@ export interface AnesthesiaCRI {
     rate: number;
   }[];
   administeredBy: string;
+}
+
+export interface AnesthesiaPlan {
+  id: string;
+  patientId: string;
+  // Premedications
+  premedications: {
+    name: string;
+    route: 'IV' | 'IM' | 'SQ' | string;
+    dosageRange: string; // mg/kg
+    anticipatedDose: string; // mg
+    concentration: string; // mg/ml
+    volume: string; // mls
+  }[];
+  
+  // Induction
+  inductionAgents: {
+    name: string;
+    route: string;
+    dosageRange: string; // mg/kg
+    anticipatedDose: string; // mg
+    concentration?: string; // mg/ml
+    volume?: string; // mls
+  }[];
+  
+  // Maintenance
+  maintenance: string;
+  
+  // IV Fluids
+  ivFluids: {
+    name: string;
+    rate: string; // ml/kg/hr
+    mlPerHr: string;
+    dropsPerSec?: string;
+    bolusVolume?: string;
+  }[];
+  
+  // Constant Rate Infusions
+  cris: {
+    name: string;
+    loadingDose?: string; // mg & ml
+    dosageRange: string; // mg/kg/hr or mcg/ml/hr
+    concentration?: string; // mg/ml
+  }[];
+  
+  // Other techniques
+  otherTechniques: {
+    name: string;
+    drugs: string[];
+    dosage: string;
+    concentration?: string;
+    volume?: string;
+  }[];
+  
+  // Additional info
+  totalBloodVolume: string;
+  ventilator: boolean;
+  
+  // Emergency drugs
+  emergencyDrugs: {
+    name: string;
+    dose: string; // mg
+    volume?: string; // ml
+  }[];
+  
+  // Vital parameters
+  tidalVolume?: string;
+  respRate?: string;
+  peep?: string;
+  
+  // Recovery info
+  recoveryArea: 'Anesthesia' | 'CCU' | 'Back Run' | 'Other';
+  recoveryAreaOther?: string;
+  
+  // Monitoring plan
+  monitoringPlan: {
+    spo2: boolean;
+    temp: boolean;
+    ecg: boolean;
+    etco2: boolean;
+    ibp: boolean;
+    nibp: boolean;
+    doppler: boolean;
+    arterialLine: boolean;
+    centralLine: boolean;
+    ivcs: {
+      longTerm: boolean;
+      shortTerm: boolean;
+      secondIV: boolean;
+    };
+  };
+  
+  postOpPlan?: string;
+  planApproval?: string;
+  
+  // Metadata
+  createdBy: string;
+  createdAt: Date;
+  updatedBy?: string;
+  updatedAt?: Date;
 } 
