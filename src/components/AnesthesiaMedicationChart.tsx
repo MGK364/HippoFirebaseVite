@@ -167,7 +167,14 @@ const AnesthesiaMedicationChart: React.FC<AnesthesiaMedicationChartProps> = ({
     
     try {
       const medication = availableCRIs.find(m => m.name === selectedCRI);
-      if (!medication) return;
+      if (!medication) {
+        setSnackbar({
+          open: true,
+          message: 'Selected medication not found in available CRIs',
+          severity: 'error'
+        });
+        return;
+      }
       
       const newCRI: Omit<AnesthesiaCRI, 'id'> = {
         name: selectedCRI,
@@ -177,7 +184,18 @@ const AnesthesiaMedicationChart: React.FC<AnesthesiaMedicationChartProps> = ({
         administeredBy: currentUser
       };
       
-      await addAnesthesiaCRI(patientId, newCRI);
+      if (!patientId) {
+        setSnackbar({
+          open: true,
+          message: 'Patient ID is missing. Cannot add CRI.',
+          severity: 'error'
+        });
+        return;
+      }
+      
+      console.log('Adding CRI medication:', newCRI);
+      const criId = await addAnesthesiaCRI(patientId, newCRI);
+      console.log('CRI added successfully with ID:', criId);
       
       setSnackbar({
         open: true,
@@ -197,9 +215,16 @@ const AnesthesiaMedicationChart: React.FC<AnesthesiaMedicationChartProps> = ({
       }
     } catch (error) {
       console.error('Error adding CRI:', error);
+      let errorMessage = 'Failed to add CRI.';
+      
+      if (error instanceof Error) {
+        errorMessage += ` Error: ${error.message}`;
+        console.error('Error details:', error.stack);
+      }
+      
       setSnackbar({
         open: true,
-        message: 'Failed to add CRI. Please try again.',
+        message: errorMessage,
         severity: 'error'
       });
     }
@@ -218,7 +243,14 @@ const AnesthesiaMedicationChart: React.FC<AnesthesiaMedicationChartProps> = ({
     
     try {
       const medication = availableBoluses.find(m => m.name === selectedBolus);
-      if (!medication) return;
+      if (!medication) {
+        setSnackbar({
+          open: true,
+          message: 'Selected medication not found in available boluses',
+          severity: 'error'
+        });
+        return;
+      }
       
       const newBolus: Omit<AnesthesiaBolus, 'id'> = {
         name: selectedBolus,
@@ -228,7 +260,18 @@ const AnesthesiaMedicationChart: React.FC<AnesthesiaMedicationChartProps> = ({
         administeredBy: currentUser
       };
       
-      await addAnesthesiaBolus(patientId, newBolus);
+      if (!patientId) {
+        setSnackbar({
+          open: true,
+          message: 'Patient ID is missing. Cannot add bolus.',
+          severity: 'error'
+        });
+        return;
+      }
+      
+      console.log('Adding bolus medication:', newBolus);
+      const bolusId = await addAnesthesiaBolus(patientId, newBolus);
+      console.log('Bolus added successfully with ID:', bolusId);
       
       setSnackbar({
         open: true,
@@ -248,9 +291,16 @@ const AnesthesiaMedicationChart: React.FC<AnesthesiaMedicationChartProps> = ({
       }
     } catch (error) {
       console.error('Error adding bolus:', error);
+      let errorMessage = 'Failed to add bolus.';
+      
+      if (error instanceof Error) {
+        errorMessage += ` Error: ${error.message}`;
+        console.error('Error details:', error.stack);
+      }
+      
       setSnackbar({
         open: true,
-        message: 'Failed to add bolus. Please try again.',
+        message: errorMessage,
         severity: 'error'
       });
     }

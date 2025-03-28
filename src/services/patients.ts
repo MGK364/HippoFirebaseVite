@@ -24,8 +24,16 @@ const getHistoryCollection = (patientId: string) => `patients/${patientId}/histo
 
 // Anesthesia medications collection paths
 const getAnesthesiaMedicationsPath = (patientId: string) => `patients/${patientId}/anesthesiaMedications`;
-const getAnesthesiaBolusesRef = (patientId: string) => collection(db, getAnesthesiaMedicationsPath(patientId), 'boluses');
-const getAnesthesiaCRIsRef = (patientId: string) => collection(db, getAnesthesiaMedicationsPath(patientId), 'cris');
+const getAnesthesiaBolusesRef = (patientId: string) => {
+  // Ensure the parent collection exists first by creating a reference to it
+  const parentRef = collection(db, getAnesthesiaMedicationsPath(patientId));
+  return collection(parentRef, 'boluses');
+};
+const getAnesthesiaCRIsRef = (patientId: string) => {
+  // Ensure the parent collection exists first by creating a reference to it
+  const parentRef = collection(db, getAnesthesiaMedicationsPath(patientId));
+  return collection(parentRef, 'cris');
+};
 
 // Path for anesthesia plan
 const getAnesthesiaPlanPath = (patientId: string) => `patients/${patientId}/anesthesiaPlan`;
@@ -690,9 +698,18 @@ const createMockAnesthesiaCRIs = (patientId: string): AnesthesiaCRI[] => {
 
 // Add a new anesthesia bolus medication
 export const addAnesthesiaBolus = async (patientId: string, bolus: Omit<AnesthesiaBolus, 'id'>): Promise<string> => {
+  if (DEVELOPMENT_MODE) {
+    const mockBoluses = createMockAnesthesiaBoluses(patientId);
+    const newId = `bolus-${patientId}-${mockBoluses.length + 1}`;
+    return newId;
+  }
+  
   try {
     const bolusesRef = getAnesthesiaBolusesRef(patientId);
-    const docRef = await addDoc(bolusesRef, bolus);
+    const docRef = await addDoc(bolusesRef, {
+      ...bolus,
+      createdAt: serverTimestamp()
+    });
     return docRef.id;
   } catch (error) {
     console.error('Error adding anesthesia bolus:', error);
@@ -702,6 +719,12 @@ export const addAnesthesiaBolus = async (patientId: string, bolus: Omit<Anesthes
 
 // Add a new anesthesia CRI medication
 export const addAnesthesiaCRI = async (patientId: string, cri: Omit<AnesthesiaCRI, 'id'>): Promise<string> => {
+  if (DEVELOPMENT_MODE) {
+    const mockCRIs = createMockAnesthesiaCRIs(patientId);
+    const newId = `cri-${patientId}-${mockCRIs.length + 1}`;
+    return newId;
+  }
+  
   try {
     const crisRef = getAnesthesiaCRIsRef(patientId);
     const docRef = await addDoc(crisRef, {
@@ -709,7 +732,8 @@ export const addAnesthesiaCRI = async (patientId: string, cri: Omit<AnesthesiaCR
       rateHistory: [{
         timestamp: cri.startTime,
         rate: cri.rate
-      }]
+      }],
+      createdAt: serverTimestamp()
     });
     return docRef.id;
   } catch (error) {
@@ -897,10 +921,25 @@ export const updateAnesthesiaPlan = async (patientId: string, plan: Omit<Anesthe
   
   try {
     const anesthesiaPlanRef = getAnesthesiaPlanRef(patientId);
-    await setDoc(anesthesiaPlanRef, {
-      ...plan,
-      updatedAt: serverTimestamp(),
-    });
+    
+    // Check if the plan document exists first
+    const planDoc = await getDoc(anesthesiaPlanRef);
+    
+    if (!planDoc.exists()) {
+      // If the plan doesn't exist, create it with createdAt
+      await setDoc(anesthesiaPlanRef, {
+        ...plan,
+        patientId,
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp()
+      });
+    } else {
+      // If the plan already exists, just update it
+      await updateDoc(anesthesiaPlanRef, {
+        ...plan,
+        updatedAt: serverTimestamp()
+      });
+    }
   } catch (error) {
     console.error('Error updating anesthesia plan:', error);
     throw error;

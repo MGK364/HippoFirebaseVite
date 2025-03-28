@@ -1172,91 +1172,15 @@ const AnesthesiaPlanForm: React.FC<AnesthesiaPlanFormProps> = ({
       <Paper sx={{ p: 2, mb: 3 }}>
         <Typography variant="h6" sx={{ mb: 2 }}>Post-Operative Plan</Typography>
         
-        <MuiGrid container spacing={3}>
-          <MuiGrid item xs={12} md={6}>
-            <FormControl fullWidth>
-              <InputLabel id="recovery-area-label">Recovery Area</InputLabel>
-              <Select
-                labelId="recovery-area-label"
-                value={plan.postOpPlan.recoveryArea || ''}
-                label="Recovery Area"
-                onChange={(e) => {
-                  setPlan(prev => ({
-                    ...prev,
-                    postOpPlan: {
-                      ...prev.postOpPlan,
-                      recoveryArea: e.target.value as string
-                    }
-                  }));
-                }}
-              >
-                {RECOVERY_AREAS.map(area => (
-                  <MenuItem key={area} value={area}>{area}</MenuItem>
-                ))}
-              </Select>
-            </FormControl>
-          </MuiGrid>
-          
-          <MuiGrid item xs={12} md={6}>
-            <TextField
-              fullWidth
-              label="Expected Recovery Time"
-              value={plan.postOpPlan.expectedRecoveryTime || ''}
-              onChange={(e) => {
-                setPlan(prev => ({
-                  ...prev,
-                  postOpPlan: {
-                    ...prev.postOpPlan,
-                    expectedRecoveryTime: e.target.value
-                  }
-                }));
-              }}
-              placeholder="e.g., 30 minutes"
-            />
-          </MuiGrid>
-          
-          <MuiGrid item xs={12}>
-            <Typography variant="subtitle2" sx={{ mb: 1 }}>Post-Op Pain Management</Typography>
-            <TextField
-              fullWidth
-              label="Pain Management Plan"
-              value={plan.postOpPlan.painManagement || ''}
-              onChange={(e) => {
-                setPlan(prev => ({
-                  ...prev,
-                  postOpPlan: {
-                    ...prev.postOpPlan,
-                    painManagement: e.target.value
-                  }
-                }));
-              }}
-              multiline
-              rows={3}
-              placeholder="e.g., Buprenorphine 0.02 mg/kg IV q6-8h for 24 hours, then reassess"
-            />
-          </MuiGrid>
-          
-          <MuiGrid item xs={12}>
-            <Typography variant="subtitle2" sx={{ mb: 1 }}>Additional Instructions</Typography>
-            <TextField
-              fullWidth
-              label="Special Instructions"
-              value={plan.postOpPlan.specialInstructions || ''}
-              onChange={(e) => {
-                setPlan(prev => ({
-                  ...prev,
-                  postOpPlan: {
-                    ...prev.postOpPlan,
-                    specialInstructions: e.target.value
-                  }
-                }));
-              }}
-              multiline
-              rows={3}
-              placeholder="e.g., Monitor temperature q15min until >99°F, provide external heat source as needed"
-            />
-          </MuiGrid>
-        </MuiGrid>
+        <TextField
+          fullWidth
+          label="Post-Operative Plan"
+          value={plan.postOpPlan || ''}
+          onChange={handleTextChange('postOpPlan')}
+          multiline
+          rows={4}
+          placeholder="Detailed post-operative care instructions, including pain management, monitoring requirements, etc."
+        />
       </Paper>
       
       <Box sx={{ mt: 3, display: 'flex', justifyContent: 'flex-end' }}>

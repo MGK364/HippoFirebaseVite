@@ -65,11 +65,27 @@ const AnesthesiaPlanEdit: React.FC = () => {
   };
 
   const handleSave = async (planData: Omit<AnesthesiaPlan, 'id'>) => {
-    if (!patientId || !currentUser) return;
+    if (!patientId || !currentUser) {
+      setError('Missing patient information or user not authenticated.');
+      return;
+    }
     
     try {
       setSaving(true);
-      await updateAnesthesiaPlan(patientId, planData);
+      setError(''); // Clear any previous errors
+      
+      // Add complete information to the plan
+      const completeData: Omit<AnesthesiaPlan, 'id'> = {
+        ...planData,
+        patientId,
+        createdBy: currentUser?.displayName || currentUser?.email || currentUser?.uid || 'unknown',
+        tidalVolume: planData.tidalVolume || calculateTidalVolume(patient?.weight || ''),
+        respRate: planData.respRate || '10-20',
+        postOpPlan: planData.postOpPlan || '',
+        planApproval: planData.planApproval || ''
+      };
+      
+      await updateAnesthesiaPlan(patientId, completeData);
       setSuccess(true);
       
       // Redirect back to patient page after a short delay
@@ -78,7 +94,11 @@ const AnesthesiaPlanEdit: React.FC = () => {
       }, 1500);
     } catch (err) {
       console.error('Error saving anesthesia plan:', err);
-      setError('Failed to save anesthesia plan. Please try again.');
+      if (err instanceof Error) {
+        setError(`Failed to save anesthesia plan: ${err.message}`);
+      } else {
+        setError('Failed to save anesthesia plan. Please try again.');
+      }
     } finally {
       setSaving(false);
     }
@@ -97,6 +117,8 @@ const AnesthesiaPlanEdit: React.FC = () => {
       totalBloodVolume: calculateBloodVolume(patient?.weight || ''),
       ventilator: false,
       emergencyDrugs: [],
+      tidalVolume: calculateTidalVolume(patient?.weight || ''),
+      respRate: '10-20',
       recoveryArea: 'Anesthesia',
       monitoringPlan: {
         spo2: true,
@@ -114,7 +136,9 @@ const AnesthesiaPlanEdit: React.FC = () => {
           secondIV: false,
         },
       },
-      createdBy: currentUser?.email || currentUser?.uid || 'unknown',
+      postOpPlan: '',
+      planApproval: '',
+      createdBy: currentUser?.displayName || currentUser?.email || currentUser?.uid || 'unknown',
       createdAt: new Date(),
     };
   };
@@ -128,6 +152,21 @@ const AnesthesiaPlanEdit: React.FC = () => {
       // Approximate blood volume (90ml/kg for dogs, adjust as needed)
       const bloodVolumeML = Math.round(weightNum * 90);
       return bloodVolumeML.toString();
+    } catch (e) {
+      return '';
+    }
+  };
+
+  // Helper function to calculate tidal volume based on weight
+  const calculateTidalVolume = (weight: string): string => {
+    try {
+      const weightNum = parseFloat(weight);
+      if (isNaN(weightNum)) return '';
+      
+      // Calculate tidal volume range (10-20 ml/kg)
+      const minTV = Math.round(weightNum * 10);
+      const maxTV = Math.round(weightNum * 20);
+      return `${minTV}-${maxTV}`;
     } catch (e) {
       return '';
     }
@@ -194,8 +233,7 @@ const AnesthesiaPlanEdit: React.FC = () => {
         <AnesthesiaPlanForm
           initialPlan={{
             ...initialPlanData,
-            id: '' // Remove id property for form
-          }}
+          } as Omit<AnesthesiaPlan, 'id'>}
           onSave={handleSave}
           patientWeight={patient?.weight || '0'}
           isLoading={saving}
