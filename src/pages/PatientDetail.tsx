@@ -239,9 +239,6 @@ export const PatientDetail: React.FC = () => {
             </Tabs>
             
             <TabPanel value={activeTab} index={0}>
-              {/* Add Vital Signs Form */}
-              <VitalSignForm patientId={patientId} onVitalSignAdded={handleDataAdded} />
-              
               {/* Anesthesia Medication Chart */}
               {currentUser && (
                 <AnesthesiaMedicationChart 
@@ -270,6 +267,9 @@ export const PatientDetail: React.FC = () => {
                   </div>
                 </Card>
               </div>
+              
+              {/* Add Vital Signs Form */}
+              <VitalSignForm patientId={patientId} onVitalSignAdded={handleDataAdded} />
             </TabPanel>
             
             <TabPanel value={activeTab} index={1}>
