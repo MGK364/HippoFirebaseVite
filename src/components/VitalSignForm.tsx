@@ -41,7 +41,6 @@ export const VitalSignForm: React.FC<VitalSignFormProps> = ({ patientId, onVital
   const [meanPressure, setMeanPressure] = useState<string>('');
   const [oxygenSaturation, setOxygenSaturation] = useState<string>('');
   const [etCO2, setEtCO2] = useState<string>('');
-  const [anestheticDepth, setAnestheticDepth] = useState<number>(3);
   const [notes, setNotes] = useState('');
 
   // Calculate MAP automatically when systolic or diastolic changes
@@ -92,7 +91,6 @@ export const VitalSignForm: React.FC<VitalSignFormProps> = ({ patientId, onVital
         oxygenSaturation: oxygenSaturation ? parseInt(oxygenSaturation) : null,
         etCO2: etCO2 ? parseInt(etCO2) : null,
         painScore: null,
-        anestheticDepth: anestheticDepth,
         notes
       };
 
@@ -108,7 +106,6 @@ export const VitalSignForm: React.FC<VitalSignFormProps> = ({ patientId, onVital
       setMeanPressure('');
       setOxygenSaturation('');
       setEtCO2('');
-      setAnestheticDepth(3);
       setNotes('');
       
       // Show success message
@@ -303,20 +300,6 @@ export const VitalSignForm: React.FC<VitalSignFormProps> = ({ patientId, onVital
                   }}
                   sx={{ flex: '1 1 200px' }}
                 />
-              </Box>
-              
-              <Box sx={{ px: 2 }}>
-                <Typography gutterBottom>Anesthetic Depth</Typography>
-                <Box sx={{ px: 1 }}>
-                  <Slider
-                    value={anestheticDepth}
-                    step={1}
-                    marks={anestheticDepthMarks}
-                    min={1}
-                    max={5}
-                    onChange={(e, newValue) => setAnestheticDepth(newValue as number)}
-                  />
-                </Box>
               </Box>
               
               <TextField

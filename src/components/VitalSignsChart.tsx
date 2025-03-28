@@ -80,7 +80,6 @@ export const VitalSignsChart: React.FC<VitalSignsChartProps> = ({
   const meanData = sortedVitalSigns.map((vs) => vs.bloodPressure.mean);
   const oxygenSaturationData = sortedVitalSigns.map((vs) => vs.oxygenSaturation);
   const etCO2Data = sortedVitalSigns.map((vs) => vs.etCO2);
-  const anestheticDepthData = sortedVitalSigns.map((vs) => vs.anestheticDepth);
   
   // Set up chart data
   const chartData: ChartData<'line'> = {
@@ -151,15 +150,6 @@ export const VitalSignsChart: React.FC<VitalSignsChartProps> = ({
         backgroundColor: 'rgba(153, 102, 255, 0.2)',
         yAxisID: 'y',
         tension: 0.3,
-      },
-      {
-        label: 'Anesthetic Depth (1-5)',
-        data: anestheticDepthData,
-        borderColor: '#36A2EB',
-        backgroundColor: 'rgba(54, 162, 235, 0.2)',
-        yAxisID: 'y',
-        tension: 0.3,
-        borderDash: [3, 3],
       },
     ],
   };

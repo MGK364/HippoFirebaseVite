@@ -21,18 +21,17 @@ export interface Patient {
 export interface VitalSign {
   id: string;
   timestamp: Date;
-  temperature: number | null;
-  heartRate: number | null;
-  respiratoryRate: number | null;
+  temperature: number;
+  heartRate: number;
+  respiratoryRate: number;
   bloodPressure: {
-    systolic: number | null;
-    diastolic: number | null;
-    mean: number | null;  // Mean Arterial Pressure (MAP)
+    systolic: number;
+    diastolic: number;
+    mean: number | null;
   };
-  oxygenSaturation: number | null;
-  etCO2: number | null;   // End-tidal CO2
-  painScore: number | null; // Pain score on scale 0-10
-  anestheticDepth: number | null; // Anesthetic depth score
+  oxygenSaturation: number;
+  etCO2: number | null;
+  painScore: number | null;
   notes: string;
 }
 

@@ -187,33 +187,43 @@ export const deletePatient = async (patientId: string): Promise<void> => {
 
 // Mock vital signs for development
 const createMockVitalSigns = (patientId: string): VitalSign[] => {
+  // Generate mock data points every 15 minutes for the past hour
   const now = new Date();
-  return Array(10).fill(null).map((_, index) => {
-    const timestamp = new Date(now);
-    timestamp.setMinutes(now.getMinutes() - index * 15); // Each entry 15 minutes apart
+  const vitalSigns: VitalSign[] = [];
+  
+  for (let i = 0; i < 5; i++) {
+    // Time: 60 minutes ago to now, in 15-minute increments
+    const timestamp = new Date(now.getTime() - (60 - i * 15) * 60000);
     
-    const systolic = 110 + Math.floor(Math.random() * 30); // 110-140 mmHg
-    const diastolic = 70 + Math.floor(Math.random() * 20); // 70-90 mmHg
-    const mean = Math.round(diastolic + (1/3) * (systolic - diastolic)); // Calculate mean arterial pressure
+    // Generate vital sign values with some random fluctuation
+    const baseHR = 80 + Math.floor(Math.random() * 20); // Heart rate around 80-100
+    const baseRR = 15 + Math.floor(Math.random() * 10); // Respiratory rate around 15-25
+    const baseSP = 120 + Math.floor(Math.random() * 20); // Systolic around 120-140
+    const baseDP = 70 + Math.floor(Math.random() * 15); // Diastolic around 70-85
+    const baseTemp = 38 + (Math.random() * 0.5); // Temp around 38-38.5
+    const baseO2 = 95 + Math.floor(Math.random() * 5); // O2 sat around 95-100
+    const baseEtCO2 = 35 + Math.floor(Math.random() * 10); // ETCO2 around 35-45
+    const basePain = 1 + Math.floor(Math.random() * 4); // Pain score 1-5
     
-    return {
-      id: `vs-${patientId}-${index}`,
+    vitalSigns.push({
+      id: `vs-${patientId}-${i+1}`,
       timestamp,
-      temperature: 38 + Math.random() * 1.5, // 38-39.5°C
-      heartRate: 70 + Math.floor(Math.random() * 30), // 70-100 bpm
-      respiratoryRate: 15 + Math.floor(Math.random() * 10), // 15-25 bpm
+      temperature: parseFloat(baseTemp.toFixed(1)),
+      heartRate: baseHR,
+      respiratoryRate: baseRR,
       bloodPressure: {
-        systolic: systolic,
-        diastolic: diastolic,
-        mean: mean
+        systolic: baseSP,
+        diastolic: baseDP,
+        mean: Math.round((baseSP + 2 * baseDP) / 3) // Calculate MAP
       },
-      oxygenSaturation: 95 + Math.floor(Math.random() * 5), // 95-100%
-      etCO2: 35 + Math.floor(Math.random() * 10), // 35-45 mmHg
-      painScore: Math.floor(Math.random() * 5), // 0-4
-      anestheticDepth: Math.floor(Math.random() * 3) + 2, // 2-4 (light to deep)
-      notes: index % 3 === 0 ? 'Patient stable' : ''
-    };
-  });
+      oxygenSaturation: baseO2,
+      etCO2: baseEtCO2,
+      painScore: basePain,
+      notes: i === 0 ? 'Initial assessment' : ''
+    });
+  }
+  
+  return vitalSigns;
 };
 
 // Get vital signs for a patient
