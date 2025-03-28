@@ -91,7 +91,7 @@ export const VitalSignsChart: React.FC<VitalSignsChartProps> = ({
         data: temperatureData,
         borderColor: theme.palette.primary.main,
         backgroundColor: 'rgba(255, 99, 132, 0.2)',
-        yAxisID: 'temperature',
+        yAxisID: 'y',
         tension: 0.3,
       },
       {
@@ -99,7 +99,7 @@ export const VitalSignsChart: React.FC<VitalSignsChartProps> = ({
         data: heartRateData,
         borderColor: theme.palette.secondary.main,
         backgroundColor: 'rgba(54, 162, 235, 0.2)',
-        yAxisID: 'pulse',
+        yAxisID: 'y',
         tension: 0.3,
       },
       {
@@ -107,7 +107,7 @@ export const VitalSignsChart: React.FC<VitalSignsChartProps> = ({
         data: respiratoryRateData,
         borderColor: theme.palette.success.main,
         backgroundColor: 'rgba(75, 192, 192, 0.2)',
-        yAxisID: 'respiration',
+        yAxisID: 'y',
         tension: 0.3,
       },
       {
@@ -115,7 +115,7 @@ export const VitalSignsChart: React.FC<VitalSignsChartProps> = ({
         data: systolicData,
         borderColor: theme.palette.error.main,
         backgroundColor: 'rgba(255, 159, 64, 0.2)',
-        yAxisID: 'bloodPressure',
+        yAxisID: 'y',
         tension: 0.3,
       },
       {
@@ -123,7 +123,7 @@ export const VitalSignsChart: React.FC<VitalSignsChartProps> = ({
         data: diastolicData,
         borderColor: theme.palette.warning.main,
         backgroundColor: 'rgba(255, 205, 86, 0.2)',
-        yAxisID: 'bloodPressure',
+        yAxisID: 'y',
         tension: 0.3,
         borderDash: [5, 5],
       },
@@ -132,7 +132,7 @@ export const VitalSignsChart: React.FC<VitalSignsChartProps> = ({
         data: meanData,
         borderColor: '#FF6384',
         backgroundColor: 'rgba(255, 99, 132, 0.2)',
-        yAxisID: 'bloodPressure',
+        yAxisID: 'y',
         tension: 0.3,
         borderDash: [10, 5],
       },
@@ -141,7 +141,7 @@ export const VitalSignsChart: React.FC<VitalSignsChartProps> = ({
         data: oxygenSaturationData,
         borderColor: '#4BC0C0',
         backgroundColor: 'rgba(75, 192, 192, 0.2)',
-        yAxisID: 'saturation',
+        yAxisID: 'y',
         tension: 0.3,
       },
       {
@@ -149,7 +149,7 @@ export const VitalSignsChart: React.FC<VitalSignsChartProps> = ({
         data: etCO2Data,
         borderColor: '#9966FF',
         backgroundColor: 'rgba(153, 102, 255, 0.2)',
-        yAxisID: 'etCO2',
+        yAxisID: 'y',
         tension: 0.3,
       },
       {
@@ -157,7 +157,7 @@ export const VitalSignsChart: React.FC<VitalSignsChartProps> = ({
         data: anestheticDepthData,
         borderColor: '#36A2EB',
         backgroundColor: 'rgba(54, 162, 235, 0.2)',
-        yAxisID: 'score',
+        yAxisID: 'y',
         tension: 0.3,
         borderDash: [3, 3],
       },
@@ -217,92 +217,15 @@ export const VitalSignsChart: React.FC<VitalSignsChartProps> = ({
           maxTicksLimit: 10
         },
       },
-      temperature: {
+      y: {
         type: 'linear',
         position: 'left',
-        title: {
-          display: true,
-          text: 'Temperature (°C)',
-        },
-        min: 35,
-        max: 42,
-      },
-      pulse: {
-        type: 'linear',
-        position: 'right',
-        title: {
-          display: true,
-          text: 'Heart Rate (bpm)',
-        },
-        min: 40,
-        max: 200,
-        grid: {
-          drawOnChartArea: false,
-        },
-      },
-      respiration: {
-        type: 'linear',
-        display: false,
-        position: 'right',
-        title: {
-          display: true,
-          text: 'Respiratory Rate (bpm)',
-        },
-        min: 0,
-        max: 60,
-      },
-      bloodPressure: {
-        type: 'linear',
-        position: 'right',
-        title: {
-          display: true,
-          text: 'Blood Pressure (mmHg)',
-        },
         min: 0,
         max: 200,
-        grid: {
-          drawOnChartArea: false,
-        },
-      },
-      saturation: {
-        type: 'linear',
-        position: 'left',
         title: {
-          display: true,
-          text: 'SpO2 (%)',
-        },
-        min: 80,
-        max: 100,
-        grid: {
-          drawOnChartArea: false,
-        },
-      },
-      etCO2: {
-        type: 'linear',
-        position: 'left',
-        title: {
-          display: true,
-          text: 'ETCO2 (mmHg)',
-        },
-        min: 20,
-        max: 80,
-        grid: {
-          drawOnChartArea: false,
-        },
-      },
-      score: {
-        type: 'linear',
-        position: 'right',
-        title: {
-          display: true,
-          text: 'Anesthetic Depth (1-5)',
-        },
-        min: 0,
-        max: 5,
-        grid: {
-          drawOnChartArea: false,
-        },
-      },
+          display: false
+        }
+      }
     },
   };
   
