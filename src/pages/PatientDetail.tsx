@@ -117,6 +117,8 @@ export const PatientDetail: React.FC = () => {
       setMedicalSummaryLoading(true);
       setAnesthesiaPlanLoading(true);
       
+      console.log('Fetching patient data for:', patientId);
+      
       // Fetch patient details
       const patientData = await getPatient(patientId);
       if (!patientData) {
@@ -129,6 +131,7 @@ export const PatientDetail: React.FC = () => {
       // Fetch vital signs
       const vitalSignsData = await getVitalSigns(patientId);
       setVitalSigns(vitalSignsData);
+      console.log('Loaded vital signs:', vitalSignsData.length);
       
       // Fetch medications
       const medicationsData = await getMedications(patientId);
@@ -139,11 +142,14 @@ export const PatientDetail: React.FC = () => {
       setHistory(historyData);
       
       // Fetch anesthesia medications
+      console.log('Fetching anesthesia medications...');
       const bolusesData = await getAnesthesiaBoluses(patientId);
       setAnesthesiaBoluses(bolusesData);
+      console.log('Loaded boluses:', bolusesData.length);
       
       const crisData = await getAnesthesiaCRIs(patientId);
       setAnesthesiaCRIs(crisData);
+      console.log('Loaded CRIs:', crisData.length);
       
       // Fetch medical summary
       const summaryData = await getMedicalSummary(patientId);
@@ -156,6 +162,7 @@ export const PatientDetail: React.FC = () => {
       setAnesthesiaPlanLoading(false);
       
       setError('');
+      console.log('Patient data loaded successfully');
     } catch (err) {
       console.error('Error fetching patient data:', err);
       setError('Failed to load patient data. Please try again later.');
@@ -259,6 +266,7 @@ export const PatientDetail: React.FC = () => {
               {/* Anesthesia Medication Chart */}
               {currentUser && (
                 <AnesthesiaMedicationChart 
+                  key={`anesthesia-chart-${anesthesiaBoluses.length}-${anesthesiaCRIs.length}`}
                   patientId={patientId}
                   vitalSignsStartTime={timeRange.startTime}
                   vitalSignsEndTime={timeRange.endTime}

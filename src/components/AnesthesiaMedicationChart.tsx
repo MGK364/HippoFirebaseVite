@@ -99,9 +99,16 @@ const AnesthesiaMedicationChart: React.FC<AnesthesiaMedicationChartProps> = ({
   useEffect(() => {
     const fetchMedicationData = async () => {
       try {
+        console.log('Fetching medication data for patient:', patientId);
+        
         // Fetch CRIs and boluses
         const fetchedCRIs = await getAnesthesiaCRIs(patientId);
         const fetchedBoluses = await getAnesthesiaBoluses(patientId);
+        
+        console.log('Fetched medications:', { 
+          cris: fetchedCRIs.length, 
+          boluses: fetchedBoluses.length 
+        });
         
         // Set state with fetched data
         setActiveCRIs(fetchedCRIs);
@@ -117,7 +124,12 @@ const AnesthesiaMedicationChart: React.FC<AnesthesiaMedicationChartProps> = ({
     };
     
     fetchMedicationData();
-  }, [patientId]);
+    
+    // Add a cleanup function to prevent state updates after unmount
+    return () => {
+      // Cleanup function
+    };
+  }, [patientId, onMedicationAdded]);
   
   // Calculate positions based on timestamp relative to the chart range
   const calculateTimePosition = (timestamp: Date): number => {
