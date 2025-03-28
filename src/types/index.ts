@@ -56,4 +56,28 @@ export interface PatientHistory {
   diagnosis: string;
   treatment: string;
   notes: string;
+}
+
+// Anesthesia Medication types
+export interface AnesthesiaBolus {
+  id: string;
+  name: string;
+  dose: number;
+  unit: string;
+  timestamp: Date;
+  administeredBy: string;
+}
+
+export interface AnesthesiaCRI {
+  id: string;
+  name: string;
+  rate: number;
+  unit: string;
+  startTime: Date;
+  endTime?: Date;
+  rateHistory?: {
+    timestamp: Date;
+    rate: number;
+  }[];
+  administeredBy: string;
 } 

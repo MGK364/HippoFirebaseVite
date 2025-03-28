@@ -39,9 +39,16 @@ ChartJS.register(
 
 interface VitalSignsChartProps {
   vitalSigns: VitalSign[];
+  onVisibleRangeChange?: (range: {
+    start: Date;
+    end: Date;
+  }) => void;
 }
 
-export const VitalSignsChart: React.FC<VitalSignsChartProps> = ({ vitalSigns }) => {
+export const VitalSignsChart: React.FC<VitalSignsChartProps> = ({ 
+  vitalSigns,
+  onVisibleRangeChange
+}) => {
   const theme = useTheme();
   const chartContainer = useRef<HTMLDivElement>(null);
   const chartInstance = useRef<ChartJS<'line'>>(null);
@@ -305,6 +312,11 @@ export const VitalSignsChart: React.FC<VitalSignsChartProps> = ({ vitalSigns }) 
       // Use any type to avoid TypeScript errors with the plugin methods
       (chartInstance.current as any).zoom(1.2);
       setZoomLevel(prev => prev * 1.2);
+      
+      // Report visible range after zoom
+      if (onVisibleRangeChange) {
+        reportVisibleRange();
+      }
     }
   };
 
@@ -314,6 +326,11 @@ export const VitalSignsChart: React.FC<VitalSignsChartProps> = ({ vitalSigns }) 
       // Use any type to avoid TypeScript errors with the plugin methods
       (chartInstance.current as any).zoom(0.8);
       setZoomLevel(prev => prev * 0.8);
+      
+      // Report visible range after zoom
+      if (onVisibleRangeChange) {
+        reportVisibleRange();
+      }
     }
   };
 
@@ -324,6 +341,11 @@ export const VitalSignsChart: React.FC<VitalSignsChartProps> = ({ vitalSigns }) 
       (chartInstance.current as any).resetZoom();
       setZoomLevel(1);
       setIsPanMode(false);
+      
+      // Report visible range after reset
+      if (onVisibleRangeChange) {
+        reportVisibleRange();
+      }
     }
   };
   
@@ -332,6 +354,11 @@ export const VitalSignsChart: React.FC<VitalSignsChartProps> = ({ vitalSigns }) 
     if (chartInstance.current) {
       // Use any type to avoid TypeScript errors with the plugin methods
       (chartInstance.current as any).pan({ x: 100 }, undefined, 'default');
+      
+      // Report visible range after pan
+      if (onVisibleRangeChange) {
+        reportVisibleRange();
+      }
     }
   };
   
@@ -340,12 +367,50 @@ export const VitalSignsChart: React.FC<VitalSignsChartProps> = ({ vitalSigns }) 
     if (chartInstance.current) {
       // Use any type to avoid TypeScript errors with the plugin methods
       (chartInstance.current as any).pan({ x: -100 }, undefined, 'default');
+      
+      // Report visible range after pan
+      if (onVisibleRangeChange) {
+        reportVisibleRange();
+      }
     }
   };
   
   // Toggle pan mode
   const togglePanMode = () => {
     setIsPanMode(!isPanMode);
+  };
+  
+  // Function to report visible time range
+  const reportVisibleRange = () => {
+    setTimeout(() => {
+      if (chartInstance.current && sortedVitalSigns.length > 0 && onVisibleRangeChange) {
+        const chart = chartInstance.current as any;
+        
+        if (chart && chart.scales && chart.scales.x) {
+          const min = chart.scales.x.min;
+          const max = chart.scales.x.max;
+          
+          // Convert min/max indices to actual dates
+          const minIndex = Math.max(0, Math.floor(min));
+          const maxIndex = Math.min(sortedVitalSigns.length - 1, Math.ceil(max));
+          
+          // Get the actual timestamps
+          const startTime = sortedVitalSigns[minIndex].timestamp instanceof Date 
+            ? sortedVitalSigns[minIndex].timestamp 
+            : new Date(sortedVitalSigns[minIndex].timestamp);
+            
+          const endTime = sortedVitalSigns[maxIndex].timestamp instanceof Date
+            ? sortedVitalSigns[maxIndex].timestamp
+            : new Date(sortedVitalSigns[maxIndex].timestamp);
+          
+          // Report the range change
+          onVisibleRangeChange({
+            start: startTime,
+            end: endTime
+          });
+        }
+      }
+    }, 200); // Short delay to ensure chart has updated
   };
   
   // Resize handler for chart responsiveness

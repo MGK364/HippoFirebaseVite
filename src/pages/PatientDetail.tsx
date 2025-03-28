@@ -14,12 +14,21 @@ import {
   CardHeader
 } from '@mui/material';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
-import { getPatient, getVitalSigns, getMedications, getPatientHistory } from '../services/patients';
-import { Patient, VitalSign, Medication, PatientHistory } from '../types';
+import { 
+  getPatient, 
+  getVitalSigns, 
+  getMedications, 
+  getPatientHistory, 
+  getAnesthesiaBoluses,
+  getAnesthesiaCRIs 
+} from '../services/patients';
+import { Patient, VitalSign, Medication, PatientHistory, AnesthesiaBolus, AnesthesiaCRI } from '../types';
 import { VitalSignsChart } from '../components/VitalSignsChart';
 import { MedicationList } from '../components/MedicationList';
 import { PatientHistoryList } from '../components/PatientHistoryList';
 import { VitalSignForm } from '../components/VitalSignForm';
+import AnesthesiaMedicationChart from '../components/AnesthesiaMedicationChart';
+import { useAuth } from '../contexts/AuthContext';
 
 interface TabPanelProps {
   children?: React.ReactNode;
@@ -49,13 +58,48 @@ const TabPanel: React.FC<TabPanelProps> = ({ children, value, index, ...other })
 export const PatientDetail: React.FC = () => {
   const { patientId } = useParams<{ patientId: string }>();
   const navigate = useNavigate();
+  const { currentUser } = useAuth();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [patient, setPatient] = useState<Patient | null>(null);
   const [vitalSigns, setVitalSigns] = useState<VitalSign[]>([]);
   const [medications, setMedications] = useState<Medication[]>([]);
   const [history, setHistory] = useState<PatientHistory[]>([]);
+  const [anesthesiaBoluses, setAnesthesiaBoluses] = useState<AnesthesiaBolus[]>([]);
+  const [anesthesiaCRIs, setAnesthesiaCRIs] = useState<AnesthesiaCRI[]>([]);
   const [activeTab, setActiveTab] = useState(0);
+  
+  // State to track visible time range for charts
+  const [visibleTimeRange, setVisibleTimeRange] = useState<{
+    start: Date;
+    end: Date;
+  } | null>(null);
+  
+  // Calculate time range for charts
+  const getTimeRange = () => {
+    if (vitalSigns.length === 0) {
+      return {
+        startTime: new Date(Date.now() - 3600000), // Default to 1 hour ago
+        endTime: new Date()
+      };
+    }
+    
+    // Sort vital signs by timestamp
+    const sortedVitalSigns = [...vitalSigns].sort((a, b) => {
+      const dateA = a.timestamp instanceof Date ? a.timestamp : new Date(a.timestamp);
+      const dateB = b.timestamp instanceof Date ? b.timestamp : new Date(b.timestamp);
+      return dateA.getTime() - dateB.getTime();
+    });
+    
+    return {
+      startTime: sortedVitalSigns[0].timestamp instanceof Date 
+        ? sortedVitalSigns[0].timestamp 
+        : new Date(sortedVitalSigns[0].timestamp),
+      endTime: sortedVitalSigns[sortedVitalSigns.length - 1].timestamp instanceof Date
+        ? sortedVitalSigns[sortedVitalSigns.length - 1].timestamp
+        : new Date(sortedVitalSigns[sortedVitalSigns.length - 1].timestamp)
+    };
+  };
 
   const fetchPatientData = async () => {
     if (!patientId) return;
@@ -84,6 +128,13 @@ export const PatientDetail: React.FC = () => {
       const historyData = await getPatientHistory(patientId);
       setHistory(historyData);
       
+      // Fetch anesthesia medications
+      const bolusesData = await getAnesthesiaBoluses(patientId);
+      setAnesthesiaBoluses(bolusesData);
+      
+      const crisData = await getAnesthesiaCRIs(patientId);
+      setAnesthesiaCRIs(crisData);
+      
       setError('');
     } catch (err) {
       console.error('Error fetching patient data:', err);
@@ -105,16 +156,24 @@ export const PatientDetail: React.FC = () => {
     navigate('/patients');
   };
 
-  const handleVitalSignAdded = () => {
-    // Refresh the vital signs data
+  const handleDataAdded = () => {
+    // Refresh the patient data
     if (patientId) {
       fetchPatientData();
     }
   };
 
+  // Handle chart visible range change
+  const handleVisibleRangeChange = (range: { start: Date; end: Date }) => {
+    setVisibleTimeRange(range);
+  };
+
   if (!patientId) {
     return <Navigate to="/patients" />;
   }
+
+  // Time range for charts
+  const timeRange = getTimeRange();
 
   return (
     <div style={{ width: '100%' }}>
@@ -181,7 +240,19 @@ export const PatientDetail: React.FC = () => {
             
             <TabPanel value={activeTab} index={0}>
               {/* Add Vital Signs Form */}
-              <VitalSignForm patientId={patientId} onVitalSignAdded={handleVitalSignAdded} />
+              <VitalSignForm patientId={patientId} onVitalSignAdded={handleDataAdded} />
+              
+              {/* Anesthesia Medication Chart */}
+              {currentUser && (
+                <AnesthesiaMedicationChart 
+                  patientId={patientId}
+                  vitalSignsStartTime={timeRange.startTime}
+                  vitalSignsEndTime={timeRange.endTime}
+                  visibleTimeRange={visibleTimeRange || undefined}
+                  onMedicationAdded={handleDataAdded}
+                  currentUser={currentUser.email || currentUser.uid}
+                />
+              )}
               
               <div style={{ width: '100%', marginTop: '24px' }}>
                 <Card>
@@ -189,7 +260,10 @@ export const PatientDetail: React.FC = () => {
                   <Divider />
                   <div style={{ width: '100%' }}>
                     {vitalSigns.length > 0 ? (
-                      <VitalSignsChart vitalSigns={vitalSigns} />
+                      <VitalSignsChart 
+                        vitalSigns={vitalSigns} 
+                        onVisibleRangeChange={handleVisibleRangeChange}
+                      />
                     ) : (
                       <Typography style={{ padding: '16px' }}>No vital signs data available</Typography>
                     )}
@@ -253,9 +327,7 @@ export const PatientDetail: React.FC = () => {
             </TabPanel>
           </Paper>
         </>
-      ) : (
-        <Typography>Patient not found</Typography>
-      )}
+      ) : null}
     </div>
   );
 }; 

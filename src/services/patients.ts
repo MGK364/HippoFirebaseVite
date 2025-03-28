@@ -9,16 +9,22 @@ import {
   query, 
   where,
   Timestamp,
-  serverTimestamp
+  serverTimestamp,
+  arrayUnion
 } from 'firebase/firestore';
 import { db } from './firebase';
-import { Patient, VitalSign, Medication, PatientHistory } from '../types';
+import { Patient, VitalSign, Medication, PatientHistory, AnesthesiaBolus, AnesthesiaCRI } from '../types';
 
 // Collection references
 const patientsCollection = 'patients';
 const getVitalSignsCollection = (patientId: string) => `patients/${patientId}/vitalSigns`;
 const getMedicationsCollection = (patientId: string) => `patients/${patientId}/medications`;
 const getHistoryCollection = (patientId: string) => `patients/${patientId}/history`;
+
+// Anesthesia medications collection paths
+const getAnesthesiaMedicationsPath = (patientId: string) => `patients/${patientId}/anesthesiaMedications`;
+const getAnesthesiaBolusesRef = (patientId: string) => collection(db, getAnesthesiaMedicationsPath(patientId), 'boluses');
+const getAnesthesiaCRIsRef = (patientId: string) => collection(db, getAnesthesiaMedicationsPath(patientId), 'cris');
 
 // For development, we'll have some mock data
 const MOCK_PATIENTS: Patient[] = [
@@ -431,6 +437,122 @@ export const addHistoryEntry = async (patientId: string, history: Omit<PatientHi
     return { id: docRef.id, ...history };
   } catch (error) {
     console.error('Error adding history entry:', error);
+    throw error;
+  }
+};
+
+// Get all anesthesia boluses for a patient
+export const getAnesthesiaBoluses = async (patientId: string): Promise<AnesthesiaBolus[]> => {
+  try {
+    const bolusesRef = getAnesthesiaBolusesRef(patientId);
+    const bolusesSnapshot = await getDocs(bolusesRef);
+    
+    return bolusesSnapshot.docs.map(doc => {
+      const data = doc.data();
+      return {
+        id: doc.id,
+        ...data,
+        timestamp: data.timestamp?.toDate(),
+      } as AnesthesiaBolus;
+    });
+  } catch (error) {
+    console.error('Error fetching anesthesia bolus medications:', error);
+    return [];
+  }
+};
+
+// Get all anesthesia CRIs for a patient
+export const getAnesthesiaCRIs = async (patientId: string): Promise<AnesthesiaCRI[]> => {
+  try {
+    const crisRef = getAnesthesiaCRIsRef(patientId);
+    const crisSnapshot = await getDocs(crisRef);
+    
+    return crisSnapshot.docs.map(doc => {
+      const data = doc.data();
+      return {
+        id: doc.id,
+        ...data,
+        startTime: data.startTime?.toDate(),
+        endTime: data.endTime?.toDate(),
+        rateHistory: data.rateHistory?.map((rh: any) => ({
+          ...rh,
+          timestamp: rh.timestamp?.toDate()
+        })),
+      } as AnesthesiaCRI;
+    });
+  } catch (error) {
+    console.error('Error fetching anesthesia CRI medications:', error);
+    return [];
+  }
+};
+
+// Add a new anesthesia bolus medication
+export const addAnesthesiaBolus = async (patientId: string, bolus: Omit<AnesthesiaBolus, 'id'>): Promise<string> => {
+  try {
+    const bolusesRef = getAnesthesiaBolusesRef(patientId);
+    const docRef = await addDoc(bolusesRef, bolus);
+    return docRef.id;
+  } catch (error) {
+    console.error('Error adding anesthesia bolus:', error);
+    throw error;
+  }
+};
+
+// Add a new anesthesia CRI medication
+export const addAnesthesiaCRI = async (patientId: string, cri: Omit<AnesthesiaCRI, 'id'>): Promise<string> => {
+  try {
+    const crisRef = getAnesthesiaCRIsRef(patientId);
+    const docRef = await addDoc(crisRef, {
+      ...cri,
+      rateHistory: [{
+        timestamp: cri.startTime,
+        rate: cri.rate
+      }]
+    });
+    return docRef.id;
+  } catch (error) {
+    console.error('Error adding anesthesia CRI:', error);
+    throw error;
+  }
+};
+
+// Update the rate of a CRI
+export const updateCRIRate = async (patientId: string, criId: string, newRate: number): Promise<void> => {
+  try {
+    const criRef = doc(getAnesthesiaCRIsRef(patientId), criId);
+    const criDoc = await getDoc(criRef);
+    
+    if (!criDoc.exists()) {
+      throw new Error('CRI not found');
+    }
+    
+    const criData = criDoc.data();
+    const timestamp = new Date();
+    
+    // Update the current rate
+    await updateDoc(criRef, {
+      rate: newRate,
+      // Add the new rate to history
+      rateHistory: arrayUnion({
+        timestamp,
+        rate: newRate
+      })
+    });
+  } catch (error) {
+    console.error('Error updating CRI rate:', error);
+    throw error;
+  }
+};
+
+// Stop a CRI (set end time)
+export const stopCRI = async (patientId: string, criId: string): Promise<void> => {
+  try {
+    const criRef = doc(getAnesthesiaCRIsRef(patientId), criId);
+    await updateDoc(criRef, {
+      endTime: new Date()
+    });
+  } catch (error) {
+    console.error('Error stopping CRI:', error);
     throw error;
   }
 }; 
