@@ -253,8 +253,6 @@ export const PatientDetail: React.FC = () => {
               
               <div style={{ width: '100%', marginTop: '24px' }}>
                 <Card>
-                  <CardHeader title="Anesthesia Monitoring" />
-                  <Divider />
                   <div style={{ width: '100%' }}>
                     {vitalSigns.length > 0 ? (
                       <VitalSignsChart 
