@@ -652,6 +652,613 @@ const AnesthesiaPlanForm: React.FC<AnesthesiaPlanFormProps> = ({
         />
       </Paper>
       
+      {/* IV Fluids Section */}
+      <Paper sx={{ p: 2, mb: 3 }}>
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+          <Typography variant="h6">IV Fluids</Typography>
+          <Button 
+            startIcon={<AddCircleOutlineIcon />}
+            onClick={addIVFluid}
+            size="small"
+          >
+            Add
+          </Button>
+        </Box>
+        
+        {plan.ivFluids.length === 0 ? (
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+            No IV fluids added yet. Click "Add" to include IV fluids.
+          </Typography>
+        ) : (
+          plan.ivFluids.map((fluid, index) => (
+            <Box 
+              key={index} 
+              sx={{ 
+                mb: 2, 
+                p: 1, 
+                border: '1px solid', 
+                borderColor: 'divider',
+                borderRadius: 1,
+                bgcolor: 'background.paper'
+              }}
+            >
+              <MuiGrid container spacing={2}>
+                <MuiGrid item xs={12} md={3}>
+                  <TextField
+                    fullWidth
+                    label="Name"
+                    value={fluid.name}
+                    onChange={(e) => updateIVFluid(index, 'name', e.target.value)}
+                    size="small"
+                    variant="outlined"
+                    required
+                  />
+                </MuiGrid>
+                <MuiGrid item xs={12} md={2}>
+                  <TextField
+                    fullWidth
+                    label="Rate"
+                    placeholder="ml/kg/hr"
+                    value={fluid.rate}
+                    onChange={(e) => updateIVFluid(index, 'rate', e.target.value)}
+                    size="small"
+                    variant="outlined"
+                  />
+                </MuiGrid>
+                <MuiGrid item xs={12} md={2}>
+                  <TextField
+                    fullWidth
+                    label="ml/hr"
+                    value={fluid.mlPerHr}
+                    onChange={(e) => updateIVFluid(index, 'mlPerHr', e.target.value)}
+                    size="small"
+                    variant="outlined"
+                  />
+                </MuiGrid>
+                <MuiGrid item xs={12} md={2}>
+                  <TextField
+                    fullWidth
+                    label="Drops/sec"
+                    value={fluid.dropsPerSec || ''}
+                    onChange={(e) => updateIVFluid(index, 'dropsPerSec', e.target.value)}
+                    size="small"
+                    variant="outlined"
+                  />
+                </MuiGrid>
+                <MuiGrid item xs={12} md={2}>
+                  <TextField
+                    fullWidth
+                    label="Bolus Volume"
+                    value={fluid.bolusVolume || ''}
+                    onChange={(e) => updateIVFluid(index, 'bolusVolume', e.target.value)}
+                    size="small"
+                    variant="outlined"
+                  />
+                </MuiGrid>
+                <MuiGrid item xs={12} md={1} sx={{ display: 'flex', justifyContent: 'center' }}>
+                  <IconButton 
+                    onClick={() => removeIVFluid(index)}
+                    size="small"
+                    color="error"
+                  >
+                    <DeleteIcon />
+                  </IconButton>
+                </MuiGrid>
+              </MuiGrid>
+            </Box>
+          ))
+        )}
+      </Paper>
+      
+      {/* CRIs Section */}
+      <Paper sx={{ p: 2, mb: 3 }}>
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+          <Typography variant="h6">Constant Rate Infusions (CRIs)</Typography>
+          <Button 
+            startIcon={<AddCircleOutlineIcon />}
+            onClick={addCRI}
+            size="small"
+          >
+            Add
+          </Button>
+        </Box>
+        
+        {plan.cris.length === 0 ? (
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+            No CRIs added yet. Click "Add" to include constant rate infusions.
+          </Typography>
+        ) : (
+          plan.cris.map((cri, index) => (
+            <Box 
+              key={index} 
+              sx={{ 
+                mb: 2, 
+                p: 1, 
+                border: '1px solid', 
+                borderColor: 'divider',
+                borderRadius: 1,
+                bgcolor: 'background.paper'
+              }}
+            >
+              <MuiGrid container spacing={2}>
+                <MuiGrid item xs={12} md={3}>
+                  <TextField
+                    fullWidth
+                    label="Name"
+                    value={cri.name}
+                    onChange={(e) => updateCRI(index, 'name', e.target.value)}
+                    size="small"
+                    variant="outlined"
+                    required
+                  />
+                </MuiGrid>
+                <MuiGrid item xs={12} md={3}>
+                  <TextField
+                    fullWidth
+                    label="Loading Dose"
+                    placeholder="mg/kg"
+                    value={cri.loadingDose || ''}
+                    onChange={(e) => updateCRI(index, 'loadingDose', e.target.value)}
+                    size="small"
+                    variant="outlined"
+                  />
+                </MuiGrid>
+                <MuiGrid item xs={12} md={3}>
+                  <TextField
+                    fullWidth
+                    label="Dosage Range"
+                    placeholder="mcg/kg/min"
+                    value={cri.dosageRange}
+                    onChange={(e) => updateCRI(index, 'dosageRange', e.target.value)}
+                    size="small"
+                    variant="outlined"
+                  />
+                </MuiGrid>
+                <MuiGrid item xs={12} md={2}>
+                  <TextField
+                    fullWidth
+                    label="Concentration"
+                    placeholder="mg/ml"
+                    value={cri.concentration || ''}
+                    onChange={(e) => updateCRI(index, 'concentration', e.target.value)}
+                    size="small"
+                    variant="outlined"
+                  />
+                </MuiGrid>
+                <MuiGrid item xs={12} md={1} sx={{ display: 'flex', justifyContent: 'center' }}>
+                  <IconButton 
+                    onClick={() => removeCRI(index)}
+                    size="small"
+                    color="error"
+                  >
+                    <DeleteIcon />
+                  </IconButton>
+                </MuiGrid>
+              </MuiGrid>
+            </Box>
+          ))
+        )}
+      </Paper>
+      
+      {/* Other Techniques Section */}
+      <Paper sx={{ p: 2, mb: 3 }}>
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+          <Typography variant="h6">Other Techniques</Typography>
+          <Button 
+            startIcon={<AddCircleOutlineIcon />}
+            onClick={addOtherTechnique}
+            size="small"
+          >
+            Add
+          </Button>
+        </Box>
+        
+        {plan.otherTechniques.length === 0 ? (
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+            No other techniques added yet. Click "Add" to include other anesthetic techniques.
+          </Typography>
+        ) : (
+          plan.otherTechniques.map((technique, index) => (
+            <Box 
+              key={index} 
+              sx={{ 
+                mb: 2, 
+                p: 1, 
+                border: '1px solid', 
+                borderColor: 'divider',
+                borderRadius: 1,
+                bgcolor: 'background.paper'
+              }}
+            >
+              <MuiGrid container spacing={2}>
+                <MuiGrid item xs={12} md={3}>
+                  <TextField
+                    fullWidth
+                    label="Technique Name"
+                    placeholder="e.g., Epidural"
+                    value={technique.name}
+                    onChange={(e) => updateOtherTechnique(index, 'name', e.target.value)}
+                    size="small"
+                    variant="outlined"
+                    required
+                  />
+                </MuiGrid>
+                <MuiGrid item xs={12} md={4}>
+                  <TextField
+                    fullWidth
+                    label="Drugs Used"
+                    placeholder="e.g., Morphine, Bupivacaine"
+                    value={technique.drugs.join(', ')}
+                    onChange={(e) => updateOtherTechnique(
+                      index, 
+                      'drugs', 
+                      e.target.value.split(',').map(drug => drug.trim())
+                    )}
+                    size="small"
+                    variant="outlined"
+                  />
+                </MuiGrid>
+                <MuiGrid item xs={12} md={2}>
+                  <TextField
+                    fullWidth
+                    label="Dosage"
+                    placeholder="e.g., 0.1 mg/kg"
+                    value={technique.dosage}
+                    onChange={(e) => updateOtherTechnique(index, 'dosage', e.target.value)}
+                    size="small"
+                    variant="outlined"
+                  />
+                </MuiGrid>
+                <MuiGrid item xs={6} md={1}>
+                  <TextField
+                    fullWidth
+                    label="Conc."
+                    placeholder="mg/ml"
+                    value={technique.concentration || ''}
+                    onChange={(e) => updateOtherTechnique(index, 'concentration', e.target.value)}
+                    size="small"
+                    variant="outlined"
+                  />
+                </MuiGrid>
+                <MuiGrid item xs={6} md={1}>
+                  <TextField
+                    fullWidth
+                    label="Volume"
+                    placeholder="ml"
+                    value={technique.volume || ''}
+                    onChange={(e) => updateOtherTechnique(index, 'volume', e.target.value)}
+                    size="small"
+                    variant="outlined"
+                  />
+                </MuiGrid>
+                <MuiGrid item xs={12} md={1} sx={{ display: 'flex', justifyContent: 'center' }}>
+                  <IconButton 
+                    onClick={() => removeOtherTechnique(index)}
+                    size="small"
+                    color="error"
+                  >
+                    <DeleteIcon />
+                  </IconButton>
+                </MuiGrid>
+              </MuiGrid>
+            </Box>
+          ))
+        )}
+      </Paper>
+      
+      {/* Emergency Drugs Section */}
+      <Paper sx={{ p: 2, mb: 3 }}>
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+          <Typography variant="h6">Emergency Drugs</Typography>
+          <Button 
+            startIcon={<AddCircleOutlineIcon />}
+            onClick={addEmergencyDrug}
+            size="small"
+          >
+            Add
+          </Button>
+        </Box>
+        
+        {plan.emergencyDrugs.length === 0 ? (
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+            No emergency drugs added yet. Click "Add" to include emergency drugs.
+          </Typography>
+        ) : (
+          plan.emergencyDrugs.map((drug, index) => (
+            <Box 
+              key={index} 
+              sx={{ 
+                mb: 2, 
+                p: 1, 
+                border: '1px solid', 
+                borderColor: 'divider',
+                borderRadius: 1,
+                bgcolor: 'background.paper'
+              }}
+            >
+              <MuiGrid container spacing={2}>
+                <MuiGrid item xs={12} md={4}>
+                  <TextField
+                    fullWidth
+                    label="Name"
+                    value={drug.name}
+                    onChange={(e) => updateEmergencyDrug(index, 'name', e.target.value)}
+                    size="small"
+                    variant="outlined"
+                    required
+                  />
+                </MuiGrid>
+                <MuiGrid item xs={12} md={4}>
+                  <TextField
+                    fullWidth
+                    label="Dose"
+                    placeholder="mg/kg"
+                    value={drug.dose}
+                    onChange={(e) => updateEmergencyDrug(index, 'dose', e.target.value)}
+                    size="small"
+                    variant="outlined"
+                  />
+                </MuiGrid>
+                <MuiGrid item xs={12} md={3}>
+                  <TextField
+                    fullWidth
+                    label="Volume"
+                    placeholder="ml"
+                    value={drug.volume || ''}
+                    onChange={(e) => updateEmergencyDrug(index, 'volume', e.target.value)}
+                    size="small"
+                    variant="outlined"
+                  />
+                </MuiGrid>
+                <MuiGrid item xs={12} md={1} sx={{ display: 'flex', justifyContent: 'center' }}>
+                  <IconButton 
+                    onClick={() => removeEmergencyDrug(index)}
+                    size="small"
+                    color="error"
+                  >
+                    <DeleteIcon />
+                  </IconButton>
+                </MuiGrid>
+              </MuiGrid>
+            </Box>
+          ))
+        )}
+      </Paper>
+      
+      {/* Monitoring Plan Section */}
+      <Paper sx={{ p: 2, mb: 3 }}>
+        <Typography variant="h6" sx={{ mb: 2 }}>Monitoring Plan</Typography>
+        
+        <Typography variant="subtitle2" sx={{ mt: 2, mb: 1 }}>IV Catheters</Typography>
+        <MuiGrid container spacing={2}>
+          <MuiGrid item xs={12} sm={4}>
+            <FormControlLabel
+              control={
+                <Checkbox 
+                  checked={plan.monitoringPlan.ivcs.peripheral} 
+                  onChange={handleIVCChange('peripheral')}
+                />
+              }
+              label="Peripheral"
+            />
+          </MuiGrid>
+          <MuiGrid item xs={12} sm={4}>
+            <FormControlLabel
+              control={
+                <Checkbox 
+                  checked={plan.monitoringPlan.ivcs.central} 
+                  onChange={handleIVCChange('central')}
+                />
+              }
+              label="Central"
+            />
+          </MuiGrid>
+          <MuiGrid item xs={12} sm={4}>
+            <FormControlLabel
+              control={
+                <Checkbox 
+                  checked={plan.monitoringPlan.ivcs.jugular} 
+                  onChange={handleIVCChange('jugular')}
+                />
+              }
+              label="Jugular"
+            />
+          </MuiGrid>
+        </MuiGrid>
+        
+        <Divider sx={{ my: 2 }} />
+        
+        <Typography variant="subtitle2" sx={{ mb: 1 }}>Monitoring Equipment</Typography>
+        <MuiGrid container spacing={2}>
+          <MuiGrid item xs={12} sm={4}>
+            <FormControlLabel
+              control={
+                <Checkbox 
+                  checked={plan.monitoringPlan.ecg} 
+                  onChange={handleMonitoringChange('ecg')}
+                />
+              }
+              label="ECG"
+            />
+          </MuiGrid>
+          <MuiGrid item xs={12} sm={4}>
+            <FormControlLabel
+              control={
+                <Checkbox 
+                  checked={plan.monitoringPlan.directBP} 
+                  onChange={handleMonitoringChange('directBP')}
+                />
+              }
+              label="Direct BP"
+            />
+          </MuiGrid>
+          <MuiGrid item xs={12} sm={4}>
+            <FormControlLabel
+              control={
+                <Checkbox 
+                  checked={plan.monitoringPlan.indirectBP} 
+                  onChange={handleMonitoringChange('indirectBP')}
+                />
+              }
+              label="Indirect BP"
+            />
+          </MuiGrid>
+          <MuiGrid item xs={12} sm={4}>
+            <FormControlLabel
+              control={
+                <Checkbox 
+                  checked={plan.monitoringPlan.pulseOx} 
+                  onChange={handleMonitoringChange('pulseOx')}
+                />
+              }
+              label="Pulse Oximetry"
+            />
+          </MuiGrid>
+          <MuiGrid item xs={12} sm={4}>
+            <FormControlLabel
+              control={
+                <Checkbox 
+                  checked={plan.monitoringPlan.capnography} 
+                  onChange={handleMonitoringChange('capnography')}
+                />
+              }
+              label="Capnography"
+            />
+          </MuiGrid>
+          <MuiGrid item xs={12} sm={4}>
+            <FormControlLabel
+              control={
+                <Checkbox 
+                  checked={plan.monitoringPlan.tempProbe} 
+                  onChange={handleMonitoringChange('tempProbe')}
+                />
+              }
+              label="Temperature Probe"
+            />
+          </MuiGrid>
+          <MuiGrid item xs={12} sm={4}>
+            <FormControlLabel
+              control={
+                <Checkbox 
+                  checked={plan.monitoringPlan.doppler} 
+                  onChange={handleMonitoringChange('doppler')}
+                />
+              }
+              label="Doppler"
+            />
+          </MuiGrid>
+        </MuiGrid>
+        
+        <TextField
+          fullWidth
+          label="Other Monitoring Notes"
+          value={plan.monitoringPlan.other || ''}
+          onChange={(e) => {
+            setPlan(prev => ({
+              ...prev,
+              monitoringPlan: {
+                ...prev.monitoringPlan,
+                other: e.target.value
+              }
+            }));
+          }}
+          multiline
+          rows={2}
+          sx={{ mt: 2 }}
+        />
+      </Paper>
+      
+      {/* Post-Operative Plan Section */}
+      <Paper sx={{ p: 2, mb: 3 }}>
+        <Typography variant="h6" sx={{ mb: 2 }}>Post-Operative Plan</Typography>
+        
+        <MuiGrid container spacing={3}>
+          <MuiGrid item xs={12} md={6}>
+            <FormControl fullWidth>
+              <InputLabel id="recovery-area-label">Recovery Area</InputLabel>
+              <Select
+                labelId="recovery-area-label"
+                value={plan.postOpPlan.recoveryArea || ''}
+                label="Recovery Area"
+                onChange={(e) => {
+                  setPlan(prev => ({
+                    ...prev,
+                    postOpPlan: {
+                      ...prev.postOpPlan,
+                      recoveryArea: e.target.value as string
+                    }
+                  }));
+                }}
+              >
+                {RECOVERY_AREAS.map(area => (
+                  <MenuItem key={area} value={area}>{area}</MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+          </MuiGrid>
+          
+          <MuiGrid item xs={12} md={6}>
+            <TextField
+              fullWidth
+              label="Expected Recovery Time"
+              value={plan.postOpPlan.expectedRecoveryTime || ''}
+              onChange={(e) => {
+                setPlan(prev => ({
+                  ...prev,
+                  postOpPlan: {
+                    ...prev.postOpPlan,
+                    expectedRecoveryTime: e.target.value
+                  }
+                }));
+              }}
+              placeholder="e.g., 30 minutes"
+            />
+          </MuiGrid>
+          
+          <MuiGrid item xs={12}>
+            <Typography variant="subtitle2" sx={{ mb: 1 }}>Post-Op Pain Management</Typography>
+            <TextField
+              fullWidth
+              label="Pain Management Plan"
+              value={plan.postOpPlan.painManagement || ''}
+              onChange={(e) => {
+                setPlan(prev => ({
+                  ...prev,
+                  postOpPlan: {
+                    ...prev.postOpPlan,
+                    painManagement: e.target.value
+                  }
+                }));
+              }}
+              multiline
+              rows={3}
+              placeholder="e.g., Buprenorphine 0.02 mg/kg IV q6-8h for 24 hours, then reassess"
+            />
+          </MuiGrid>
+          
+          <MuiGrid item xs={12}>
+            <Typography variant="subtitle2" sx={{ mb: 1 }}>Additional Instructions</Typography>
+            <TextField
+              fullWidth
+              label="Special Instructions"
+              value={plan.postOpPlan.specialInstructions || ''}
+              onChange={(e) => {
+                setPlan(prev => ({
+                  ...prev,
+                  postOpPlan: {
+                    ...prev.postOpPlan,
+                    specialInstructions: e.target.value
+                  }
+                }));
+              }}
+              multiline
+              rows={3}
+              placeholder="e.g., Monitor temperature q15min until >99°F, provide external heat source as needed"
+            />
+          </MuiGrid>
+        </MuiGrid>
+      </Paper>
+      
       <Box sx={{ mt: 3, display: 'flex', justifyContent: 'flex-end' }}>
         <Button
           type="submit"
