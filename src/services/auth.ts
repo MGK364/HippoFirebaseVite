@@ -2,7 +2,9 @@ import {
   signInWithEmailAndPassword, 
   signOut as firebaseSignOut,
   onAuthStateChanged,
-  User as FirebaseUser
+  User as FirebaseUser,
+  createUserWithEmailAndPassword,
+  updateProfile
 } from 'firebase/auth';
 import { auth } from './firebase';
 import { User } from '../types';
@@ -19,7 +21,7 @@ const formatUser = (user: FirebaseUser | null): User | null => {
 };
 
 // For development purposes, we'll use a persistent user
-const DEVELOPMENT_MODE = true;
+const DEVELOPMENT_MODE = false;
 const DEV_USER: User = {
   uid: 'dev-user-123',
   email: 'dev@vetclinic.com',
@@ -76,4 +78,23 @@ export const onAuthStateChange = (callback: (user: User | null) => void): () => 
   return onAuthStateChanged(auth, (user) => {
     callback(formatUser(user));
   });
+};
+
+// Register a new user
+export const register = async (email: string, password: string, displayName: string): Promise<User> => {
+  if (DEVELOPMENT_MODE) {
+    return DEV_USER;
+  }
+  
+  try {
+    const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+    
+    // Update the user's display name
+    await updateProfile(userCredential.user, { displayName });
+    
+    return formatUser(userCredential.user) as User;
+  } catch (error) {
+    console.error('Error registering:', error);
+    throw error;
+  }
 }; 

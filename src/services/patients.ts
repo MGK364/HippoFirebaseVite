@@ -86,7 +86,7 @@ const MOCK_PATIENTS: Patient[] = [
 ];
 
 // Development mode flag
-const DEVELOPMENT_MODE = true;
+const DEVELOPMENT_MODE = false;
 
 // Get all patients
 export const getPatients = async (): Promise<Patient[]> => {

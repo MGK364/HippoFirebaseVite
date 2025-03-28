@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   Box, 
   TextField, 
@@ -14,16 +14,22 @@ import {
   CircularProgress,
   SelectChangeEvent
 } from '@mui/material';
-import { addPatient } from '../services/patients';
+import { addPatient, updatePatient } from '../services/patients';
 import { Patient } from '../types';
 
 interface PatientFormProps {
   onPatientAdded: () => void;
+  initialPatient?: Patient;
+  isEditing?: boolean;
 }
 
 type PatientStatus = 'Active' | 'Inactive';
 
-const PatientForm: React.FC<PatientFormProps> = ({ onPatientAdded }) => {
+const PatientForm: React.FC<PatientFormProps> = ({ 
+  onPatientAdded, 
+  initialPatient, 
+  isEditing = false 
+}) => {
   const [formValues, setFormValues] = useState({
     name: '',
     species: 'Canine',
@@ -37,6 +43,21 @@ const PatientForm: React.FC<PatientFormProps> = ({ onPatientAdded }) => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
+
+  // Initialize form with patient data if editing
+  useEffect(() => {
+    if (initialPatient && isEditing) {
+      setFormValues({
+        name: initialPatient.name,
+        species: initialPatient.species,
+        breed: initialPatient.breed || '',
+        age: initialPatient.age || '',
+        weight: initialPatient.weight || '',
+        clientId: initialPatient.clientId || '',
+        status: initialPatient.status as PatientStatus || 'Active'
+      });
+    }
+  }, [initialPatient, isEditing]);
 
   const handleTextChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
@@ -76,24 +97,30 @@ const PatientForm: React.FC<PatientFormProps> = ({ onPatientAdded }) => {
         status: formValues.status
       };
 
-      await addPatient(patientData);
-      
-      // Reset form
-      setFormValues({
-        name: '',
-        species: 'Canine',
-        breed: '',
-        age: '',
-        weight: '',
-        clientId: '',
-        status: 'Active' as PatientStatus
-      });
+      if (isEditing && initialPatient) {
+        await updatePatient(initialPatient.id, patientData);
+      } else {
+        await addPatient(patientData);
+        
+        // Reset form only if adding a new patient
+        if (!isEditing) {
+          setFormValues({
+            name: '',
+            species: 'Canine',
+            breed: '',
+            age: '',
+            weight: '',
+            clientId: '',
+            status: 'Active' as PatientStatus
+          });
+        }
+      }
       
       setSuccess(true);
       onPatientAdded();
     } catch (err) {
-      console.error('Error adding patient:', err);
-      setError(`Failed to add patient: ${err instanceof Error ? err.message : 'Unknown error'}`);
+      console.error(`Error ${isEditing ? 'updating' : 'adding'} patient:`, err);
+      setError(`Failed to ${isEditing ? 'update' : 'add'} patient: ${err instanceof Error ? err.message : 'Unknown error'}`);
     } finally {
       setLoading(false);
     }
@@ -102,7 +129,7 @@ const PatientForm: React.FC<PatientFormProps> = ({ onPatientAdded }) => {
   return (
     <Paper sx={{ p: 3, mb: 3 }}>
       <Typography variant="h6" gutterBottom>
-        Add New Patient
+        {isEditing ? 'Edit Patient' : 'Add New Patient'}
       </Typography>
 
       {error && (
@@ -113,7 +140,7 @@ const PatientForm: React.FC<PatientFormProps> = ({ onPatientAdded }) => {
 
       {success && (
         <Alert severity="success" sx={{ mb: 2 }}>
-          Patient added successfully!
+          Patient {isEditing ? 'updated' : 'added'} successfully!
         </Alert>
       )}
 
@@ -235,9 +262,9 @@ const PatientForm: React.FC<PatientFormProps> = ({ onPatientAdded }) => {
             {loading ? (
               <>
                 <CircularProgress size={24} sx={{ mr: 1 }} color="inherit" />
-                Saving...
+                {isEditing ? 'Updating...' : 'Saving...'}
               </>
-            ) : 'Add Patient'}
+            ) : isEditing ? 'Update Patient' : 'Add Patient'}
           </Button>
         </Box>
       </Box>

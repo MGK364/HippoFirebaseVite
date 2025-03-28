@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link as RouterLink } from 'react-router-dom';
 import {
   Box,
   Button,
@@ -8,7 +8,8 @@ import {
   Typography,
   Paper,
   Alert,
-  CircularProgress
+  CircularProgress,
+  Link
 } from '@mui/material';
 import { useAuth } from '../contexts/AuthContext';
 
@@ -102,6 +103,14 @@ export const Login: React.FC = () => {
             >
               {loading ? <CircularProgress size={24} /> : 'Sign In'}
             </Button>
+            <Box sx={{ textAlign: 'center', mt: 1 }}>
+              <Typography variant="body2">
+                Don't have an account?{' '}
+                <Link component={RouterLink} to="/signup">
+                  Sign Up
+                </Link>
+              </Typography>
+            </Box>
           </Box>
         </Paper>
       </Box>
