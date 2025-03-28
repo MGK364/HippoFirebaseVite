@@ -18,6 +18,7 @@ import MenuIcon from '@mui/icons-material/Menu';
 import PetsIcon from '@mui/icons-material/Pets';
 import HomeIcon from '@mui/icons-material/Home';
 import LogoutIcon from '@mui/icons-material/Logout';
+import AdminPanelSettingsIcon from '@mui/icons-material/AdminPanelSettings';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 
@@ -57,7 +58,8 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
 
   const menuItems = [
     { text: 'Dashboard', icon: <HomeIcon />, path: '/' },
-    { text: 'Patients', icon: <PetsIcon />, path: '/patients' }
+    { text: 'Patients', icon: <PetsIcon />, path: '/patients' },
+    { text: 'Admin', icon: <AdminPanelSettingsIcon />, path: '/admin' }
   ];
 
   const drawer = (

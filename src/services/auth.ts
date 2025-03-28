@@ -19,7 +19,7 @@ const formatUser = (user: FirebaseUser | null): User | null => {
 };
 
 // For development purposes, we'll use a persistent user
-const DEVELOPMENT_MODE = true;
+const DEVELOPMENT_MODE = false;
 const DEV_USER: User = {
   uid: 'dev-user-123',
   email: 'dev@vetclinic.com',

@@ -8,6 +8,7 @@ import { PatientsList } from './pages/PatientsList';
 import { PatientDetail } from './pages/PatientDetail';
 import MedicalSummaryEdit from './pages/MedicalSummaryEdit';
 import AnesthesiaPlanEdit from './pages/AnesthesiaPlanEdit';
+import AdminDashboard from './pages/AdminDashboard';
 import { useAuth } from './contexts/AuthContext';
 
 // Create a theme instance
@@ -67,6 +68,7 @@ function App() {
             <Route path="/patients/:patientId" element={<PrivateLayout><PatientDetail /></PrivateLayout>} />
             <Route path="/patients/:patientId/medical-summary/edit" element={<PrivateLayout><MedicalSummaryEdit /></PrivateLayout>} />
             <Route path="/patients/:patientId/anesthesia-plan/edit" element={<PrivateLayout><AnesthesiaPlanEdit /></PrivateLayout>} />
+            <Route path="/admin" element={<PrivateLayout><AdminDashboard /></PrivateLayout>} />
             
             {/* Redirect any unknown routes to home */}
             <Route path="*" element={<Navigate to="/" />} />
