@@ -25,14 +25,14 @@ const getHistoryCollection = (patientId: string) => `patients/${patientId}/histo
 // Anesthesia medications collection paths
 const getAnesthesiaMedicationsPath = (patientId: string) => `patients/${patientId}/anesthesiaMedications`;
 const getAnesthesiaBolusesRef = (patientId: string) => {
-  // Ensure the parent collection exists first by creating a reference to it
-  const parentRef = collection(db, getAnesthesiaMedicationsPath(patientId));
-  return collection(parentRef, 'boluses');
+  // Create reference to the boluses subcollection directly
+  // This fixes the "odd number of segments" error by using the correct path structure
+  return collection(db, `patients/${patientId}/anesthesiaBoluses`);
 };
 const getAnesthesiaCRIsRef = (patientId: string) => {
-  // Ensure the parent collection exists first by creating a reference to it
-  const parentRef = collection(db, getAnesthesiaMedicationsPath(patientId));
-  return collection(parentRef, 'cris');
+  // Create reference to the CRIs subcollection directly
+  // This fixes the "odd number of segments" error by using the correct path structure
+  return collection(db, `patients/${patientId}/anesthesiaCRIs`);
 };
 
 // Path for anesthesia plan
@@ -705,14 +705,24 @@ export const addAnesthesiaBolus = async (patientId: string, bolus: Omit<Anesthes
   }
   
   try {
+    console.log(`Adding bolus for patient ${patientId}:`, bolus);
     const bolusesRef = getAnesthesiaBolusesRef(patientId);
+    
+    // Log collection path for debugging
+    console.log('Boluses collection path:', bolusesRef.path);
+    
     const docRef = await addDoc(bolusesRef, {
       ...bolus,
       createdAt: serverTimestamp()
     });
+    
+    console.log('Successfully added bolus with ID:', docRef.id);
     return docRef.id;
   } catch (error) {
     console.error('Error adding anesthesia bolus:', error);
+    if (error instanceof Error) {
+      console.error('Error details:', error.stack);
+    }
     throw error;
   }
 };
@@ -726,7 +736,12 @@ export const addAnesthesiaCRI = async (patientId: string, cri: Omit<AnesthesiaCR
   }
   
   try {
+    console.log(`Adding CRI for patient ${patientId}:`, cri);
     const crisRef = getAnesthesiaCRIsRef(patientId);
+    
+    // Log collection path for debugging
+    console.log('CRIs collection path:', crisRef.path);
+    
     const docRef = await addDoc(crisRef, {
       ...cri,
       rateHistory: [{
@@ -735,24 +750,40 @@ export const addAnesthesiaCRI = async (patientId: string, cri: Omit<AnesthesiaCR
       }],
       createdAt: serverTimestamp()
     });
+    
+    console.log('Successfully added CRI with ID:', docRef.id);
     return docRef.id;
   } catch (error) {
     console.error('Error adding anesthesia CRI:', error);
+    if (error instanceof Error) {
+      console.error('Error details:', error.stack);
+    }
     throw error;
   }
 };
 
 // Update the rate of a CRI
 export const updateCRIRate = async (patientId: string, criId: string, newRate: number): Promise<void> => {
+  if (DEVELOPMENT_MODE) {
+    console.log(`Development mode: Updated CRI rate for ${criId} to ${newRate}`);
+    return;
+  }
+  
   try {
+    console.log(`Updating rate for CRI ${criId} to ${newRate}`);
     const criRef = doc(getAnesthesiaCRIsRef(patientId), criId);
+    
+    // Log doc path for debugging
+    console.log('CRI document path:', criRef.path);
+    
     const criDoc = await getDoc(criRef);
     
     if (!criDoc.exists()) {
-      throw new Error('CRI not found');
+      const error = new Error(`CRI not found with ID: ${criId}`);
+      console.error(error);
+      throw error;
     }
     
-    const criData = criDoc.data();
     const timestamp = new Date();
     
     // Update the current rate
@@ -764,21 +795,49 @@ export const updateCRIRate = async (patientId: string, criId: string, newRate: n
         rate: newRate
       })
     });
+    
+    console.log('Successfully updated CRI rate');
   } catch (error) {
     console.error('Error updating CRI rate:', error);
+    if (error instanceof Error) {
+      console.error('Error details:', error.stack);
+    }
     throw error;
   }
 };
 
 // Stop a CRI (set end time)
 export const stopCRI = async (patientId: string, criId: string): Promise<void> => {
+  if (DEVELOPMENT_MODE) {
+    console.log(`Development mode: Stopped CRI ${criId}`);
+    return;
+  }
+  
   try {
+    console.log(`Stopping CRI ${criId}`);
     const criRef = doc(getAnesthesiaCRIsRef(patientId), criId);
+    
+    // Log doc path for debugging
+    console.log('CRI document path:', criRef.path);
+    
+    const criDoc = await getDoc(criRef);
+    
+    if (!criDoc.exists()) {
+      const error = new Error(`CRI not found with ID: ${criId}`);
+      console.error(error);
+      throw error;
+    }
+    
     await updateDoc(criRef, {
       endTime: new Date()
     });
+    
+    console.log('Successfully stopped CRI');
   } catch (error) {
     console.error('Error stopping CRI:', error);
+    if (error instanceof Error) {
+      console.error('Error details:', error.stack);
+    }
     throw error;
   }
 };
