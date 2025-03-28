@@ -10,10 +10,11 @@ import {
   where,
   Timestamp,
   serverTimestamp,
-  arrayUnion
+  arrayUnion,
+  setDoc
 } from 'firebase/firestore';
 import { db } from './firebase';
-import { Patient, VitalSign, Medication, PatientHistory, AnesthesiaBolus, AnesthesiaCRI } from '../types';
+import { Patient, VitalSign, Medication, PatientHistory, AnesthesiaBolus, AnesthesiaCRI, MedicalSummary } from '../types';
 
 // Collection references
 const patientsCollection = 'patients';
@@ -752,4 +753,106 @@ export const stopCRI = async (patientId: string, criId: string): Promise<void> =
     console.error('Error stopping CRI:', error);
     throw error;
   }
+};
+
+// Get patient's medical summary
+export const getMedicalSummary = async (patientId: string): Promise<MedicalSummary | null> => {
+  if (DEVELOPMENT_MODE) {
+    return createMockMedicalSummary(patientId);
+  }
+  
+  try {
+    const medicalSummaryRef = doc(db, `patients/${patientId}/medicalSummary/current`);
+    const medicalSummaryDoc = await getDoc(medicalSummaryRef);
+    
+    if (!medicalSummaryDoc.exists()) {
+      return null;
+    }
+    
+    const data = medicalSummaryDoc.data();
+    return {
+      id: medicalSummaryDoc.id,
+      ...data,
+      lastUpdated: data.lastUpdated?.toDate(),
+    } as MedicalSummary;
+  } catch (error) {
+    console.error('Error fetching medical summary:', error);
+    return null;
+  }
+};
+
+// Update or create a patient's medical summary
+export const updateMedicalSummary = async (patientId: string, medicalSummary: Omit<MedicalSummary, 'id'>): Promise<void> => {
+  if (DEVELOPMENT_MODE) {
+    console.log('Updating medical summary in development mode:', medicalSummary);
+    return;
+  }
+  
+  try {
+    const medicalSummaryRef = doc(db, `patients/${patientId}/medicalSummary/current`);
+    await setDoc(medicalSummaryRef, {
+      ...medicalSummary,
+      lastUpdated: serverTimestamp(),
+    });
+  } catch (error) {
+    console.error('Error updating medical summary:', error);
+    throw error;
+  }
+};
+
+// Create a mock medical summary for development
+const createMockMedicalSummary = (patientId: string): MedicalSummary => {
+  return {
+    id: `ms-${patientId}`,
+    temperament: 'Calm but anxious in clinical settings',
+    bcs: '4/9',
+    historyText: 'Left hindlimb lameness noticed in April -> progressed, osteosarcoma diagnosed -> staging (x-ray/CT/AUS) showed no obvious metastasis',
+    previousDiagnoses: ['Osteosarcoma - left hindlimb'],
+    previousAnesthesia: true,
+    anesthesiaDetails: 'Previously anesthetized for diagnostic imaging with no complications',
+    ivInPlace: false,
+    ettSize: '14',
+    physicalExam: {
+      temp: 103.1,
+      heartRate: 128,
+      respRate: 24,
+      age: '4y',
+      weight: '47 kgs',
+      mucousMembranes: 'pink',
+      crt: '< 2 sec',
+      pulseQuality: 'strong',
+      auscultation: 'WNL'
+    },
+    labValues: {
+      pcv: '46%',
+      tp: '8.2',
+      bun: '10',
+      sodium: '147',
+      potassium: '3.5',
+      chloride: '115',
+      calcium: '10.2',
+      glucose: '112',
+      creatinine: '0.8',
+      albumin: '3.4',
+      alkp: '176',
+      ast: '44',
+      alt: '11',
+      tbil: '0.3',
+      platelets: '353',
+      wbc: '9.2',
+      pt_ptt: 'N/A',
+      crossmatch: 'N/A'
+    },
+    cardioStatus: 'WNL',
+    respiratoryStatus: 'WNL',
+    neuroMuscStatus: 'S/S lame left hind',
+    currentMeds: [],
+    asaStatus: 'II',
+    problemList: ['Hind limb osteosarcoma'],
+    anestheticComplications: ['Hypotension', 'Blood loss', 'Bradycardia', 'Pain', 'Hypoventilation', 'Regurgitation'],
+    cpr: true,
+    clientAuth: true,
+    lastUpdated: new Date(),
+    updatedBy: 'Dr. Smith'
+  };
 }; 

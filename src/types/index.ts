@@ -57,6 +57,84 @@ export interface PatientHistory {
   notes: string;
 }
 
+// Extended Medical History
+export interface MedicalSummary {
+  id: string;
+  // General info
+  temperament: string;
+  bcs: string; // Body Condition Score
+  
+  // History
+  historyText: string; // For detailed condition description
+  previousDiagnoses: string[];
+  
+  // Anesthesia history
+  previousAnesthesia: boolean;
+  anesthesiaDetails?: string; // Drugs used and response
+  
+  // IV status
+  ivInPlace: boolean;
+  ettSize?: string; // Endotracheal tube size
+  
+  // Most recent physical exam
+  physicalExam: {
+    temp: number;
+    heartRate: number;
+    respRate: number;
+    age: string;
+    weight: string;
+    mucousMembranes: string; // e.g., "pink"
+    crt: string; // Capillary Refill Time
+    pulseQuality: string;
+    auscultation: string; // e.g., "WNL" (within normal limits)
+  };
+  
+  // Lab values
+  labValues?: {
+    pcv: string; // Packed Cell Volume
+    tp: string; // Total Protein
+    bun: string; // Blood Urea Nitrogen
+    creatinine: string;
+    sodium: string;
+    potassium: string;
+    chloride: string;
+    calcium: string;
+    glucose: string;
+    alt: string; // Alanine Aminotransferase
+    tbil: string; // Total Bilirubin
+    platelets: string;
+    albumin: string;
+    alkp: string; // Alkaline Phosphatase
+    ast: string; // Aspartate Aminotransferase
+    wbc: string; // White Blood Cell count
+    pt_ptt: string; // Prothrombin Time/Partial Thromboplastin Time
+    crossmatch: string;
+  };
+  
+  // Status reports
+  cardioStatus: string;
+  respiratoryStatus: string;
+  neuroMuscStatus: string;
+  
+  // Current medications
+  currentMeds: string[];
+  
+  // Problem list and ASA status
+  asaStatus: string; // I-V
+  problemList: string[];
+  painScore?: string;
+  
+  // Possible complications
+  anestheticComplications: string[];
+  
+  // Emergency preferences
+  cpr: boolean; // true = Yes, false = DNR
+  clientAuth: boolean; // consent given
+  
+  lastUpdated: Date;
+  updatedBy: string;
+}
+
 // Anesthesia Medication types
 export interface AnesthesiaBolus {
   id: string;

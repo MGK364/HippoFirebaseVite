@@ -20,14 +20,16 @@ import {
   getMedications, 
   getPatientHistory, 
   getAnesthesiaBoluses,
-  getAnesthesiaCRIs 
+  getAnesthesiaCRIs,
+  getMedicalSummary
 } from '../services/patients';
-import { Patient, VitalSign, Medication, PatientHistory, AnesthesiaBolus, AnesthesiaCRI } from '../types';
+import { Patient, VitalSign, Medication, PatientHistory, AnesthesiaBolus, AnesthesiaCRI, MedicalSummary } from '../types';
 import { VitalSignsChart } from '../components/VitalSignsChart';
 import { MedicationList } from '../components/MedicationList';
 import { PatientHistoryList } from '../components/PatientHistoryList';
 import { VitalSignForm } from '../components/VitalSignForm';
 import AnesthesiaMedicationChart from '../components/AnesthesiaMedicationChart';
+import MedicalSummaryView from '../components/MedicalSummaryView';
 import { useAuth } from '../contexts/AuthContext';
 
 interface TabPanelProps {
@@ -67,6 +69,8 @@ export const PatientDetail: React.FC = () => {
   const [history, setHistory] = useState<PatientHistory[]>([]);
   const [anesthesiaBoluses, setAnesthesiaBoluses] = useState<AnesthesiaBolus[]>([]);
   const [anesthesiaCRIs, setAnesthesiaCRIs] = useState<AnesthesiaCRI[]>([]);
+  const [medicalSummary, setMedicalSummary] = useState<MedicalSummary | null>(null);
+  const [medicalSummaryLoading, setMedicalSummaryLoading] = useState(true);
   const [activeTab, setActiveTab] = useState(0);
   
   // State to track visible time range for charts
@@ -106,6 +110,7 @@ export const PatientDetail: React.FC = () => {
 
     try {
       setLoading(true);
+      setMedicalSummaryLoading(true);
       
       // Fetch patient details
       const patientData = await getPatient(patientId);
@@ -134,6 +139,11 @@ export const PatientDetail: React.FC = () => {
       
       const crisData = await getAnesthesiaCRIs(patientId);
       setAnesthesiaCRIs(crisData);
+      
+      // Fetch medical summary
+      const summaryData = await getMedicalSummary(patientId);
+      setMedicalSummary(summaryData);
+      setMedicalSummaryLoading(false);
       
       setError('');
     } catch (err) {
@@ -232,6 +242,7 @@ export const PatientDetail: React.FC = () => {
               <Tab label="Vital Signs" />
               <Tab label="Medications" />
               <Tab label="Patient History" />
+              <Tab label="Medical Summary" />
             </Tabs>
             
             <TabPanel value={activeTab} index={0}>
@@ -315,6 +326,32 @@ export const PatientDetail: React.FC = () => {
                     ) : (
                       <Typography>No history data available</Typography>
                     )}
+                  </div>
+                </Card>
+              </div>
+            </TabPanel>
+            
+            <TabPanel value={activeTab} index={3}>
+              <div style={{ width: '100%' }}>
+                <Card>
+                  <CardHeader 
+                    title="Medical Summary" 
+                    action={
+                      <Button 
+                        variant="contained" 
+                        size="small"
+                        onClick={() => navigate(`/patients/${patientId}/medical-summary/edit`)}
+                      >
+                        Edit Medical Summary
+                      </Button>
+                    }
+                  />
+                  <Divider />
+                  <div style={{ width: '100%', padding: '16px' }}>
+                    <MedicalSummaryView 
+                      summary={medicalSummary} 
+                      loading={medicalSummaryLoading} 
+                    />
                   </div>
                 </Card>
               </div>
