@@ -663,7 +663,7 @@ const AnesthesiaPlanForm: React.FC<AnesthesiaPlanFormProps> = ({
           name: drugName 
       };
       return { ...prev, inductionAgents: updatedItems };
-      });
+    });
     } else if (type === 'cri') {
       setPlan(prev => {
         const updatedItems = [...prev.cris];
@@ -685,9 +685,9 @@ const AnesthesiaPlanForm: React.FC<AnesthesiaPlanFormProps> = ({
   const updateIVFluid = (index: number, field: keyof IVFluidItem, value: string) => {
     setPlan(prev => {
       const updatedItems = [...prev.ivFluids];
-      updatedItems[index] = {
-        ...updatedItems[index],
-        [field]: value
+      updatedItems[index] = { 
+        ...updatedItems[index], 
+        [field]: value 
       };
       
       // Auto-calculate mlPerHr when rate changes
@@ -722,10 +722,10 @@ const AnesthesiaPlanForm: React.FC<AnesthesiaPlanFormProps> = ({
           drugs: value.split(',').map(drug => drug.trim())
         };
       } else {
-        updatedItems[index] = {
-          ...updatedItems[index],
-          [field]: value
-        };
+      updatedItems[index] = { 
+        ...updatedItems[index], 
+        [field]: value 
+      };
         
         // Auto-calculate anticipated dose if dosage range changes
         if (field === 'dosageRange' && patientWeight && value) {
@@ -1042,28 +1042,28 @@ const AnesthesiaPlanForm: React.FC<AnesthesiaPlanFormProps> = ({
             const inputId = getInputId('premedication', index);
             
             return (
-              <Box 
+            <Box 
                 key={`premedication-${index}`} 
-                sx={{ 
-                  mb: 2, 
+              sx={{ 
+                mb: 2, 
                   pb: 2, 
                   borderBottom: index !== plan.premedications.length - 1 ? `1px solid ${alpha('#000', 0.1)}` : 'none'
-                }}
-              >
-                <MuiGrid container spacing={2}>
-                  <MuiGrid item xs={12} md={4}>
+              }}
+            >
+              <MuiGrid container spacing={2}>
+                <MuiGrid item xs={12} md={4}>
                       <div ref={(el) => assignRef(inputId, el)} style={{ position: 'relative', width: '100%' }}>
-                    <TextField
-                      fullWidth
+                  <TextField
+                    fullWidth
                       label="Medication Name"
-                      value={med.name}
+                    value={med.name}
                       onChange={(e) => {
                         updatePremedication(index, 'name', e.target.value);
                         handleDrugSearch('premedication', index, e.target.value);
                       }}
-                      size="small"
-                      variant="outlined"
-                      required
+                    size="small"
+                    variant="outlined"
+                    required
                       InputProps={{
                         endAdornment: isLoadingDrugs ? (
                           <InputAdornment position="end">
@@ -1097,79 +1097,79 @@ const AnesthesiaPlanForm: React.FC<AnesthesiaPlanFormProps> = ({
                       </ClickAwayListener>
                     )}
                       </div>
-                  </MuiGrid>
-                  <MuiGrid item xs={12} md={2}>
-                    <FormControl fullWidth size="small">
-                      <InputLabel id={`route-label-premed-${index}`}>Route</InputLabel>
-                      <Select
-                        labelId={`route-label-premed-${index}`}
-                        value={med.route}
+                </MuiGrid>
+                <MuiGrid item xs={12} md={2}>
+                  <FormControl fullWidth size="small">
+                    <InputLabel id={`route-label-premed-${index}`}>Route</InputLabel>
+                    <Select
+                      labelId={`route-label-premed-${index}`}
+                      value={med.route}
                         onChange={(e) => updatePremedication(index, 'route', e.target.value)}
-                        label="Route"
+                      label="Route"
                       >
                         <MenuItem value="IV">IV</MenuItem>
                         <MenuItem value="IM">IM</MenuItem>
                         <MenuItem value="SQ">SQ</MenuItem>
                         <MenuItem value="PO">PO</MenuItem>
-                      </Select>
-                    </FormControl>
-                  </MuiGrid>
-                  <MuiGrid item xs={12} md={2}>
-                    <TextField
-                      fullWidth
-                        label="Dosage mg/kg"
-                      value={med.dosageRange}
-                      onChange={(e) => updatePremedication(index, 'dosageRange', e.target.value)}
-                      size="small"
-                      variant="outlined"
-                        InputLabelProps={{ shrink: true }}
-                    />
-                  </MuiGrid>
-                  <MuiGrid item xs={12} md={2}>
-                    <TextField
-                      fullWidth
-                        label="Anticipated Dose mg"
-                      value={med.anticipatedDose}
-                      onChange={(e) => updatePremedication(index, 'anticipatedDose', e.target.value)}
-                      size="small"
-                      variant="outlined"
-                        InputLabelProps={{ shrink: true }}
-                    />
-                  </MuiGrid>
-                  <MuiGrid item xs={6} md={1}>
-                    <TextField
-                      fullWidth
-                        label="Conc. mg/ml"
-                      value={med.concentration}
-                      onChange={(e) => updatePremedication(index, 'concentration', e.target.value)}
-                      size="small"
-                      variant="outlined"
-                        InputLabelProps={{ shrink: true }}
-                    />
-                  </MuiGrid>
-                  <MuiGrid item xs={6} md={1}>
-                    <Box sx={{ display: 'flex', alignItems: 'center', height: '100%' }}>
-                      <TextField
-                        fullWidth
-                          label="Volume ml"
-                        value={med.volume}
-                        onChange={(e) => updatePremedication(index, 'volume', e.target.value)}
-                        size="small"
-                        variant="outlined"
-                        sx={{ mr: 1 }}
-                          InputLabelProps={{ shrink: true }}
-                      />
-                      <IconButton 
-                        onClick={() => removePremedication(index)}
-                        size="small"
-                        color="error"
-                      >
-                        <DeleteIcon />
-                      </IconButton>
-                    </Box>
-                  </MuiGrid>
+                    </Select>
+                  </FormControl>
                 </MuiGrid>
-              </Box>
+                <MuiGrid item xs={12} md={2}>
+                  <TextField
+                    fullWidth
+                        label="Dosage mg/kg"
+                    value={med.dosageRange}
+                    onChange={(e) => updatePremedication(index, 'dosageRange', e.target.value)}
+                    size="small"
+                    variant="outlined"
+                        InputLabelProps={{ shrink: true }}
+                  />
+                </MuiGrid>
+                <MuiGrid item xs={12} md={2}>
+                  <TextField
+                    fullWidth
+                        label="Anticipated Dose mg"
+                    value={med.anticipatedDose}
+                    onChange={(e) => updatePremedication(index, 'anticipatedDose', e.target.value)}
+                    size="small"
+                    variant="outlined"
+                        InputLabelProps={{ shrink: true }}
+                  />
+                </MuiGrid>
+                <MuiGrid item xs={6} md={1}>
+                  <TextField
+                    fullWidth
+                        label="Conc. mg/ml"
+                    value={med.concentration}
+                    onChange={(e) => updatePremedication(index, 'concentration', e.target.value)}
+                    size="small"
+                    variant="outlined"
+                        InputLabelProps={{ shrink: true }}
+                  />
+                </MuiGrid>
+                <MuiGrid item xs={6} md={1}>
+                  <Box sx={{ display: 'flex', alignItems: 'center', height: '100%' }}>
+                    <TextField
+                      fullWidth
+                          label="Volume ml"
+                      value={med.volume}
+                      onChange={(e) => updatePremedication(index, 'volume', e.target.value)}
+                      size="small"
+                      variant="outlined"
+                      sx={{ mr: 1 }}
+                          InputLabelProps={{ shrink: true }}
+                    />
+                    <IconButton 
+                      onClick={() => removePremedication(index)}
+                      size="small"
+                      color="error"
+                    >
+                      <DeleteIcon />
+                    </IconButton>
+                  </Box>
+                </MuiGrid>
+              </MuiGrid>
+            </Box>
             );
           })
         )}
@@ -1195,28 +1195,28 @@ const AnesthesiaPlanForm: React.FC<AnesthesiaPlanFormProps> = ({
             const inputId = getInputId('induction', index);
             
             return (
-              <Box 
+            <Box 
                 key={`induction-${index}`} 
-                sx={{ 
-                  mb: 2, 
+              sx={{ 
+                mb: 2, 
                   pb: 2, 
                   borderBottom: index !== plan.inductionAgents.length - 1 ? `1px solid ${alpha('#000', 0.1)}` : 'none'
-                }}
-              >
-                <MuiGrid container spacing={2}>
-                  <MuiGrid item xs={12} md={4}>
+              }}
+            >
+              <MuiGrid container spacing={2}>
+                <MuiGrid item xs={12} md={4}>
                       <div ref={(el) => assignRef(inputId, el)} style={{ position: 'relative', width: '100%' }}>
-                    <TextField
-                      fullWidth
+                  <TextField
+                    fullWidth
                       label="Medication Name"
-                      value={med.name}
+                    value={med.name}
                       onChange={(e) => {
                         updateInductionAgent(index, 'name', e.target.value);
                         handleDrugSearch('induction', index, e.target.value);
                       }}
-                      size="small"
-                      variant="outlined"
-                      required
+                    size="small"
+                    variant="outlined"
+                    required
                       InputProps={{
                         endAdornment: isLoadingDrugs ? (
                           <InputAdornment position="end">
@@ -1250,79 +1250,79 @@ const AnesthesiaPlanForm: React.FC<AnesthesiaPlanFormProps> = ({
                       </ClickAwayListener>
                     )}
                       </div>
-                  </MuiGrid>
-                  <MuiGrid item xs={12} md={2}>
-                    <FormControl fullWidth size="small">
+                </MuiGrid>
+                <MuiGrid item xs={12} md={2}>
+                  <FormControl fullWidth size="small">
                         <InputLabel id={`route-label-induction-${index}`}>Route</InputLabel>
-                      <Select
+                    <Select
                         labelId={`route-label-induction-${index}`}
-                        value={med.route}
+                      value={med.route}
                         onChange={(e) => updateInductionAgent(index, 'route', e.target.value)}
-                        label="Route"
+                      label="Route"
                       >
                         <MenuItem value="IV">IV</MenuItem>
                         <MenuItem value="IM">IM</MenuItem>
                         <MenuItem value="SQ">SQ</MenuItem>
                         <MenuItem value="PO">PO</MenuItem>
-                      </Select>
-                    </FormControl>
-                  </MuiGrid>
-                  <MuiGrid item xs={12} md={2}>
-                    <TextField
-                      fullWidth
-                        label="Dosage mg/kg"
-                      value={med.dosageRange}
-                      onChange={(e) => updateInductionAgent(index, 'dosageRange', e.target.value)}
-                      size="small"
-                      variant="outlined"
-                        InputLabelProps={{ shrink: true }}
-                    />
-                  </MuiGrid>
-                  <MuiGrid item xs={12} md={2}>
-                    <TextField
-                      fullWidth
-                        label="Anticipated Dose mg"
-                      value={med.anticipatedDose}
-                      onChange={(e) => updateInductionAgent(index, 'anticipatedDose', e.target.value)}
-                      size="small"
-                      variant="outlined"
-                        InputLabelProps={{ shrink: true }}
-                    />
-                  </MuiGrid>
-                  <MuiGrid item xs={6} md={1}>
-                    <TextField
-                      fullWidth
-                        label="Conc. mg/ml"
-                      value={med.concentration || ''}
-                      onChange={(e) => updateInductionAgent(index, 'concentration', e.target.value)}
-                      size="small"
-                      variant="outlined"
-                        InputLabelProps={{ shrink: true }}
-                    />
-                  </MuiGrid>
-                  <MuiGrid item xs={6} md={1}>
-                    <Box sx={{ display: 'flex', alignItems: 'center', height: '100%' }}>
-                      <TextField
-                        fullWidth
-                          label="Volume ml"
-                        value={med.volume || ''}
-                        onChange={(e) => updateInductionAgent(index, 'volume', e.target.value)}
-                        size="small"
-                        variant="outlined"
-                        sx={{ mr: 1 }}
-                          InputLabelProps={{ shrink: true }}
-                      />
-                      <IconButton 
-                        onClick={() => removeInductionAgent(index)}
-                        size="small"
-                        color="error"
-                      >
-                        <DeleteIcon />
-                      </IconButton>
-                    </Box>
-                  </MuiGrid>
+                    </Select>
+                  </FormControl>
                 </MuiGrid>
-              </Box>
+                <MuiGrid item xs={12} md={2}>
+                  <TextField
+                    fullWidth
+                        label="Dosage mg/kg"
+                    value={med.dosageRange}
+                    onChange={(e) => updateInductionAgent(index, 'dosageRange', e.target.value)}
+                    size="small"
+                    variant="outlined"
+                        InputLabelProps={{ shrink: true }}
+                  />
+                </MuiGrid>
+                <MuiGrid item xs={12} md={2}>
+                  <TextField
+                    fullWidth
+                        label="Anticipated Dose mg"
+                    value={med.anticipatedDose}
+                    onChange={(e) => updateInductionAgent(index, 'anticipatedDose', e.target.value)}
+                    size="small"
+                    variant="outlined"
+                        InputLabelProps={{ shrink: true }}
+                  />
+                </MuiGrid>
+                <MuiGrid item xs={6} md={1}>
+                  <TextField
+                    fullWidth
+                        label="Conc. mg/ml"
+                    value={med.concentration || ''}
+                    onChange={(e) => updateInductionAgent(index, 'concentration', e.target.value)}
+                    size="small"
+                    variant="outlined"
+                        InputLabelProps={{ shrink: true }}
+                  />
+                </MuiGrid>
+                <MuiGrid item xs={6} md={1}>
+                  <Box sx={{ display: 'flex', alignItems: 'center', height: '100%' }}>
+                    <TextField
+                      fullWidth
+                          label="Volume ml"
+                      value={med.volume || ''}
+                      onChange={(e) => updateInductionAgent(index, 'volume', e.target.value)}
+                      size="small"
+                      variant="outlined"
+                      sx={{ mr: 1 }}
+                          InputLabelProps={{ shrink: true }}
+                    />
+                    <IconButton 
+                      onClick={() => removeInductionAgent(index)}
+                      size="small"
+                      color="error"
+                    >
+                      <DeleteIcon />
+                    </IconButton>
+                  </Box>
+                </MuiGrid>
+              </MuiGrid>
+            </Box>
             );
           })
         )}
@@ -1401,8 +1401,8 @@ const AnesthesiaPlanForm: React.FC<AnesthesiaPlanFormProps> = ({
                   <FormControl fullWidth size="small">
                     <InputLabel>Fluid Type</InputLabel>
                     <Select
-                      value={fluid.name}
-                      onChange={(e) => updateIVFluid(index, 'name', e.target.value)}
+                    value={fluid.name}
+                    onChange={(e) => updateIVFluid(index, 'name', e.target.value)}
                       label="Fluid Type"
                     >
                       {COMMON_IV_FLUIDS.map((fluidType) => (
@@ -1490,15 +1490,15 @@ const AnesthesiaPlanForm: React.FC<AnesthesiaPlanFormProps> = ({
               <MuiGrid container spacing={2}>
                 <MuiGrid item xs={12} md={3}>
                   <div ref={(el) => assignRef(getInputId('cri', index), el)} style={{ position: 'relative', width: '100%' }}>
-                    <TextField
-                      fullWidth
-                      label="Name"
+                  <TextField
+                    fullWidth
+                    label="Name"
                       value={searchText[getInputId('cri', index)] || cri.name}
                       onChange={(e) => handleDrugSearch('cri', index, e.target.value)}
-                      size="small"
-                      variant="outlined"
-                      required
-                    />
+                    size="small"
+                    variant="outlined"
+                    required
+                  />
                     {dropdownOpen[getInputId('cri', index)] && filteredDrugs[getInputId('cri', index)] && filteredDrugs[getInputId('cri', index)].length > 0 && (
                       <ClickAwayListener onClickAway={() => handleClickAway(getInputId('cri', index))}>
                         <Paper
@@ -1644,23 +1644,23 @@ const AnesthesiaPlanForm: React.FC<AnesthesiaPlanFormProps> = ({
                 </MuiGrid>
                 <MuiGrid item xs={6} md={3}>
                   <Box sx={{ display: 'flex', alignItems: 'center', height: '100%' }}>
-                    <TextField
-                      fullWidth
+                  <TextField
+                    fullWidth
                       label="Volume ml"
-                      value={technique.volume || ''}
-                      onChange={(e) => updateOtherTechnique(index, 'volume', e.target.value)}
-                      size="small"
-                      variant="outlined"
+                    value={technique.volume || ''}
+                    onChange={(e) => updateOtherTechnique(index, 'volume', e.target.value)}
+                    size="small"
+                    variant="outlined"
                       sx={{ mr: 1 }}
                       InputLabelProps={{ shrink: true }}
-                    />
-                    <IconButton 
-                      onClick={() => removeOtherTechnique(index)}
-                      size="small"
-                      color="error"
-                    >
-                      <DeleteIcon />
-                    </IconButton>
+                  />
+                  <IconButton 
+                    onClick={() => removeOtherTechnique(index)}
+                    size="small"
+                    color="error"
+                  >
+                    <DeleteIcon />
+                  </IconButton>
                   </Box>
                 </MuiGrid>
               </MuiGrid>
@@ -1668,11 +1668,12 @@ const AnesthesiaPlanForm: React.FC<AnesthesiaPlanFormProps> = ({
           ))
         )}
       </Paper>
-
+      
       {/* Local Regional Anesthesia Section */}
       <Paper sx={{ p: 2, mb: 3 }}>
+        <Typography variant="h6" sx={{ mb: 2 }}>Local Regional Anesthesia</Typography>
         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-          <Typography variant="h6">Local Regional Anesthesia</Typography>
+          <Typography variant="body2" color="text.secondary">Add local/regional anesthetic techniques</Typography>
           <Button 
             startIcon={<AddCircleOutlineIcon />}
             onClick={addLocalRegional}
@@ -1689,10 +1690,10 @@ const AnesthesiaPlanForm: React.FC<AnesthesiaPlanFormProps> = ({
             // Local regional anesthesia technique card
             <Box
               key={`local-regional-${index}`}
-              sx={{
-                mb: 2,
+              sx={{ 
+                mb: 2, 
                 p: 2,
-                border: '1px solid',
+                border: '1px solid', 
                 borderColor: 'divider',
                 borderRadius: 1,
                 position: 'relative'
@@ -1784,13 +1785,13 @@ const AnesthesiaPlanForm: React.FC<AnesthesiaPlanFormProps> = ({
                       placeholder="e.g., Morphine, Dexmedetomidine"
                       sx={{ mr: 1 }}
                     />
-                    <IconButton 
+                  <IconButton 
                       onClick={() => removeLocalRegional(index)}
-                      size="small"
-                      color="error"
-                    >
-                      <DeleteIcon />
-                    </IconButton>
+                    size="small"
+                    color="error"
+                  >
+                    <DeleteIcon />
+                  </IconButton>
                   </Box>
                 </MuiGrid>
               </MuiGrid>
@@ -1799,80 +1800,7 @@ const AnesthesiaPlanForm: React.FC<AnesthesiaPlanFormProps> = ({
         )}
       </Paper>
       
-      {/* Post-Operative Plan Section - Moved up */}
-      <Paper sx={{ p: 2, mb: 3 }}>
-        <Typography variant="h6" sx={{ mb: 2 }}>Post-Operative Plan</Typography>
-        
-        <MuiGrid container spacing={3}>
-          <MuiGrid item xs={12} md={8}>
-            <TextField
-              fullWidth
-              label="Post-Operative Plan"
-              value={plan.postOpPlan || ''}
-              onChange={handleTextChange('postOpPlan')}
-              multiline
-              rows={4}
-              placeholder="Detailed post-operative care instructions, including pain management, monitoring requirements, etc."
-            />
-          </MuiGrid>
-          
-          <MuiGrid item xs={12} md={4}>
-            <Typography variant="subtitle2" gutterBottom>Recovery Area</Typography>
-            <FormControl fullWidth size="small">
-              <Select
-                value={plan.recoveryArea}
-                onChange={(e) => setPlan(prev => ({ 
-                  ...prev, 
-                  recoveryArea: e.target.value as any,
-                  recoveryAreaOther: e.target.value === 'Other' ? prev.recoveryAreaOther : '' 
-                }))}
-              >
-                <MenuItem value="Anesthesia">Anesthesia</MenuItem>
-                <MenuItem value="ICU">ICU</MenuItem>
-                <MenuItem value="Wards">Wards</MenuItem>
-                <MenuItem value="Other">Other</MenuItem>
-              </Select>
-            </FormControl>
-            
-            {plan.recoveryArea === 'Other' && (
-              <TextField
-                fullWidth
-                placeholder="Specify recovery area"
-                value={plan.recoveryAreaOther || ''}
-                onChange={(e) => setPlan(prev => ({ ...prev, recoveryAreaOther: e.target.value }))}
-                size="small"
-                sx={{ mt: 1 }}
-              />
-            )}
-          </MuiGrid>
-        </MuiGrid>
-      </Paper>
-      
-      {/* Emergency Drugs and Reversals - Card Display */}
-      <Paper sx={{ p: 2, mb: 3 }}>
-        <Typography variant="h6" sx={{ mb: 2 }}>Emergency Drugs and Reversals</Typography>
-        
-        <Box sx={{ 
-          display: 'grid', 
-          gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', 
-          gap: 2 
-        }}>
-          {EMERGENCY_DRUGS.map((drug, index) => (
-            <EmergencyDrugCard 
-              key={index}
-              drugName={drug.name}
-              dogDosage={drug.dogDosage}
-              catDosage={drug.catDosage}
-              concentration={drug.concentration}
-              patientWeight={patientWeight}
-              drugColor={drug.color}
-              onAdd={handleAddEmergencyDrug}
-            />
-          ))}
-        </Box>
-      </Paper>
-      
-      {/* Monitoring Plan Section */}
+      {/* Monitoring Plan Section - Moved up from below Emergency Drugs */}
       <Paper sx={{ p: 2, mb: 3 }}>
         <Typography variant="h6" sx={{ mb: 2 }}>Monitoring Plan</Typography>
         
@@ -2086,7 +2014,7 @@ const AnesthesiaPlanForm: React.FC<AnesthesiaPlanFormProps> = ({
               }
             }}
           >
-            EtCO2
+            ETCO2
           </ToggleButton>
           
           <ToggleButton
@@ -2218,17 +2146,66 @@ const AnesthesiaPlanForm: React.FC<AnesthesiaPlanFormProps> = ({
           >
             Central Line
           </ToggleButton>
+          
+          <ToggleButton
+            value="nmbMonitoring"
+            selected={plan.nmbMonitoring || false}
+            onChange={handleToggleNMBMonitoring}
+            sx={{ 
+              minWidth: '120px', 
+              bgcolor: plan.nmbMonitoring ? 'primary.dark' : 'background.paper',
+              color: plan.nmbMonitoring ? 'primary.contrastText' : 'text.primary',
+              border: plan.nmbMonitoring ? '1px solid transparent' : '1px solid rgba(0, 0, 0, 0.23)',
+              fontWeight: plan.nmbMonitoring ? 'bold' : 'normal',
+              '&.Mui-selected': {
+                bgcolor: 'primary.dark',
+                color: 'primary.contrastText',
+              },
+              '&.Mui-selected:hover': {
+                bgcolor: 'primary.dark',
+                color: 'primary.contrastText'
+              },
+              '&:hover': {
+                bgcolor: plan.nmbMonitoring ? 'primary.dark' : 'rgba(0, 0, 0, 0.04)'
+              }
+            }}
+          >
+            NMB Monitoring
+          </ToggleButton>
         </Box>
         
-        {/* Additional Equipment section */}
-        <Typography variant="subtitle2" sx={{ mt: 3, mb: 1 }}>Additional Equipment</Typography>
+        <Typography variant="subtitle2" sx={{ mt: 2, mb: 1 }}>Blood Volume Calculation</Typography>
+        <MuiGrid container spacing={2} sx={{ mb: 2 }}>
+          <MuiGrid item xs={12} md={6} lg={4}>
+            <TextField
+              fullWidth
+              label="Species"
+              value={plan.species || ''}
+              onChange={(e) => setPlan(prev => ({ ...prev, species: e.target.value }))}
+              size="small"
+              placeholder="Dog, Cat, Rabbit, etc."
+            />
+          </MuiGrid>
+          <MuiGrid item xs={12} md={6} lg={4}>
+            <TextField
+              fullWidth
+              label="Total Blood Volume"
+              value={plan.totalBloodVolume || ''}
+              onChange={(e) => setPlan(prev => ({ ...prev, totalBloodVolume: e.target.value }))}
+              size="small"
+              placeholder="e.g. 90 mL/kg (dogs), 60 mL/kg (cats)"
+              helperText="Estimate: Dogs 80-90 mL/kg, Cats 50-60 mL/kg"
+            />
+          </MuiGrid>
+        </MuiGrid>
+
         <Box sx={{ mb: 2 }}>
-          <MuiGrid container spacing={2}>
+        <MuiGrid container spacing={2}>
             <MuiGrid item xs={12} md={6}>
               <Box>
-                <FormControlLabel
-                  control={
-                    <Checkbox
+            <FormControlLabel
+              control={
+                <Checkbox 
                       checked={plan.ventilator}
                       onChange={(e) => setPlan(prev => ({ ...prev, ventilator: e.target.checked }))}
                     />
@@ -2240,7 +2217,7 @@ const AnesthesiaPlanForm: React.FC<AnesthesiaPlanFormProps> = ({
                   <Box sx={{ mt: 1, pl: 4 }}>
                     <Typography variant="subtitle2" gutterBottom>Ventilator Settings</Typography>
                     <MuiGrid container spacing={2}>
-                      <MuiGrid item xs={12} sm={4}>
+          <MuiGrid item xs={12} sm={4}>
                         <TextField
                           fullWidth
                           label="Tidal Volume"
@@ -2250,9 +2227,9 @@ const AnesthesiaPlanForm: React.FC<AnesthesiaPlanFormProps> = ({
                           InputProps={{
                             endAdornment: <InputAdornment position="end">ml</InputAdornment>,
                           }}
-                        />
-                      </MuiGrid>
-                      <MuiGrid item xs={12} sm={4}>
+            />
+          </MuiGrid>
+          <MuiGrid item xs={12} sm={4}>
                         <TextField
                           fullWidth
                           label="Resp Rate"
@@ -2262,9 +2239,9 @@ const AnesthesiaPlanForm: React.FC<AnesthesiaPlanFormProps> = ({
                           InputProps={{
                             endAdornment: <InputAdornment position="end">bpm</InputAdornment>,
                           }}
-                        />
-                      </MuiGrid>
-                      <MuiGrid item xs={12} sm={4}>
+            />
+          </MuiGrid>
+          <MuiGrid item xs={12} sm={4}>
                         <TextField
                           fullWidth
                           label="PEEP"
@@ -2274,52 +2251,90 @@ const AnesthesiaPlanForm: React.FC<AnesthesiaPlanFormProps> = ({
                           InputProps={{
                             endAdornment: <InputAdornment position="end">cmH₂O</InputAdornment>,
                           }}
-                        />
-                      </MuiGrid>
+            />
+          </MuiGrid>
                     </MuiGrid>
                   </Box>
                 )}
               </Box>
             </MuiGrid>
-            
-            <MuiGrid item xs={12} md={6}>
-              <FormControlLabel
-                control={
-                  <Checkbox
-                    checked={plan.nmbMonitoring || false}
-                    onChange={(e) => setPlan(prev => ({ ...prev, nmbMonitoring: e.target.checked }))}
-                  />
-                }
-                label="NMB Monitoring"
-              />
-            </MuiGrid>
-          </MuiGrid>
-        </Box>
-        
-        {/* Total Blood Volume calculation */}
-        <Typography variant="subtitle2" sx={{ mt: 3, mb: 1 }}>Blood Volume Estimation</Typography>
-        <Box sx={{ mb: 2 }}>
-          <MuiGrid container spacing={2}>
-            <MuiGrid item xs={12} md={6}>
-              <TextField
-                fullWidth
-                label="Total Blood Volume"
-                value={plan.totalBloodVolume}
-                onChange={(e) => setPlan(prev => ({ ...prev, totalBloodVolume: e.target.value }))}
-                variant="outlined"
-                size="small"
-                InputProps={{
-                  endAdornment: <InputAdornment position="end">ml</InputAdornment>,
-                }}
-              />
-              <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5 }}>
-                Calculated at 90ml/kg for dogs and 60ml/kg for cats based on patient weight
-              </Typography>
-            </MuiGrid>
           </MuiGrid>
         </Box>
       </Paper>
       
+      {/* Emergency Drugs and Reversals - Card Display */}
+      <Paper sx={{ p: 2, mb: 3 }}>
+        <Typography variant="h6" sx={{ mb: 2 }}>Emergency Drugs and Reversals</Typography>
+        
+        <Box sx={{ 
+          display: 'grid', 
+          gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', 
+          gap: 2 
+        }}>
+          {EMERGENCY_DRUGS.map((drug, index) => (
+            <EmergencyDrugCard 
+              key={index}
+              drugName={drug.name}
+              dogDosage={drug.dogDosage}
+              catDosage={drug.catDosage}
+              concentration={drug.concentration}
+              patientWeight={patientWeight}
+              drugColor={drug.color}
+              onAdd={handleAddEmergencyDrug}
+            />
+          ))}
+        </Box>
+      </Paper>
+
+      <Paper sx={{ p: 2, mb: 3 }}>
+        <Typography variant="h6" sx={{ mb: 2 }}>Post-Operative Plan</Typography>
+        
+        <MuiGrid container spacing={3}>
+          <MuiGrid item xs={12} md={8}>
+            <TextField
+              fullWidth
+              label="Post-Operative Plan"
+              value={plan.postOpPlan || ''}
+              onChange={handleTextChange('postOpPlan')}
+              multiline
+              rows={4}
+              placeholder="Detailed post-operative care instructions, including pain management, monitoring requirements, etc."
+            />
+          </MuiGrid>
+          
+          <MuiGrid item xs={12} md={4}>
+            <Typography variant="subtitle2" gutterBottom>Recovery Area</Typography>
+            <FormControl fullWidth size="small">
+              <Select
+                value={plan.recoveryArea}
+                onChange={(e) => setPlan(prev => ({ 
+                  ...prev, 
+                  recoveryArea: e.target.value as any,
+                  recoveryAreaOther: e.target.value === 'Other' ? prev.recoveryAreaOther : '' 
+                }))}
+              >
+                <MenuItem value="Anesthesia">Anesthesia</MenuItem>
+                <MenuItem value="ICU">ICU</MenuItem>
+                <MenuItem value="Wards">Wards</MenuItem>
+                <MenuItem value="Other">Other</MenuItem>
+              </Select>
+            </FormControl>
+            
+            {plan.recoveryArea === 'Other' && (
+              <TextField
+                fullWidth
+                placeholder="Specify recovery area"
+                value={plan.recoveryAreaOther || ''}
+                onChange={(e) => setPlan(prev => ({ ...prev, recoveryAreaOther: e.target.value }))}
+                size="small"
+                sx={{ mt: 1 }}
+              />
+            )}
+          </MuiGrid>
+        </MuiGrid>
+      </Paper>
+      
+      {/* IMPORTANT: REMOVE THE DUPLICATED MONITORING PLAN SECTION */}      
       <Box sx={{ mt: 3, display: 'flex', justifyContent: 'flex-end' }}>
         <Button
           type="submit"
