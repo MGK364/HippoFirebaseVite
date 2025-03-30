@@ -47,6 +47,20 @@ export interface Medication {
   administeredBy: string;
 }
 
+// Formulary drug type
+export interface FormularyDrug {
+  id: string;
+  name: string;
+  category: string; // Sedatives, Opioids, IV Anesthetics, etc.
+  dosage: string; // Standard dosage range
+  concentration: string; // Available concentrations
+  routes: string[]; // SQ, IM, IV, etc.
+  duration: string; // How long the drug typically lasts
+  notes: string; // Special considerations
+  majorSideEffects: string; // Major side effects to be aware of
+  reversal?: string; // Reversal agent if applicable
+}
+
 // Patient history type
 export interface PatientHistory {
   id: string;
@@ -131,6 +145,9 @@ export interface MedicalSummary {
   cpr: boolean; // true = Yes, false = DNR
   clientAuth: boolean; // consent given
   
+  // Additional ASA Emergency field
+  asaEmergency?: boolean;
+  
   lastUpdated: Date;
   updatedBy: string;
 }
@@ -192,6 +209,18 @@ export interface AnesthesiaPlan {
     mlPerHr: string;
     dropsPerSec?: string;
     bolusVolume?: string;
+    additives?: string; // e.g., KCl, vitamins
+  }[];
+  
+  // Local Regional Anesthesia
+  localRegional?: {
+    name: string; // Local anesthetic name
+    technique: string; // e.g., Epidural, RUMM block
+    drugs: string[]; // Additional drugs
+    dosage: string;
+    concentration?: string;
+    volume?: string;
+    additives?: string; // e.g., Morphine, Dexmedetomidine
   }[];
   
   // Constant Rate Infusions
@@ -207,6 +236,8 @@ export interface AnesthesiaPlan {
     name: string;
     drugs: string[];
     dosage: string;
+    dosageRange?: string; // For auto-calculation
+    anticipatedDose?: string; // For auto-calculation
     concentration?: string;
     volume?: string;
   }[];
@@ -214,6 +245,7 @@ export interface AnesthesiaPlan {
   // Additional info
   totalBloodVolume: string;
   ventilator: boolean;
+  ivCatheterInPlace?: boolean;
   
   // Emergency drugs
   emergencyDrugs: {
@@ -231,7 +263,20 @@ export interface AnesthesiaPlan {
   recoveryArea: 'Anesthesia' | 'CCU' | 'Back Run' | 'Other';
   recoveryAreaOther?: string;
   
-  // Monitoring plan
+  // Post-operative plan
+  postOpPlan?: string;
+  
+  // Approval and tracking
+  planApproval?: string;
+  createdBy: string;
+  createdAt: Date;
+  updatedBy?: string;
+  updatedAt?: Date;
+  
+  // Atipamezole values for emergency drugs section
+  atipamezoleDose?: string;
+  atipamezoleVolume?: string;
+  
   monitoringPlan: {
     spo2: boolean;
     temp: boolean;
@@ -248,13 +293,27 @@ export interface AnesthesiaPlan {
       secondIV: boolean;
     };
   };
-  
-  postOpPlan?: string;
-  planApproval?: string;
-  
-  // Metadata
-  createdBy: string;
-  createdAt: Date;
-  updatedBy?: string;
-  updatedAt?: Date;
+}
+
+export interface OtherTechniqueItem {
+  name: string;
+  drugs: string[];
+  dosage: string;
+  dosageRange?: string; // For auto-calculation
+  anticipatedDose?: string; // For auto-calculation
+  concentration?: string;
+  volume?: string;
+}
+
+// Local Regional Anesthesia
+export interface LocalRegionalItem {
+  name: string;
+  technique: string;
+  drugs: string[];
+  dosage: string;
+  dosageRange?: string; // For auto-calculation
+  anticipatedDose?: string; // For auto-calculation
+  concentration?: string;
+  volume?: string;
+  additives?: string;
 } 
