@@ -13,7 +13,8 @@ import {
   Alert,
   Stack,
   Slider,
-  Tooltip
+  Tooltip,
+  styled
 } from '@mui/material';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import ExpandLessIcon from '@mui/icons-material/ExpandLess';
@@ -25,6 +26,17 @@ interface VitalSignFormProps {
   patientId: string;
   onVitalSignAdded: () => void;
 }
+
+// Styled component to remove the up/down arrows from number inputs
+const NumberTextField = styled(TextField)({
+  '& input::-webkit-outer-spin-button, & input::-webkit-inner-spin-button': {
+    '-webkit-appearance': 'none',
+    margin: 0,
+  },
+  '& input[type=number]': {
+    '-moz-appearance': 'textfield', // Firefox
+  },
+});
 
 export const VitalSignForm: React.FC<VitalSignFormProps> = ({ patientId, onVitalSignAdded }) => {
   const [expanded, setExpanded] = useState(false);
@@ -43,25 +55,17 @@ export const VitalSignForm: React.FC<VitalSignFormProps> = ({ patientId, onVital
   const [etCO2, setEtCO2] = useState<string>('');
   const [notes, setNotes] = useState('');
 
-  // Calculate MAP automatically when systolic or diastolic changes
-  useEffect(() => {
-    if (systolic && diastolic) {
-      // MAP ≈ DBP + 1/3(SBP - DBP)
-      const sbp = parseFloat(systolic);
-      const dbp = parseFloat(diastolic);
-      if (!isNaN(sbp) && !isNaN(dbp)) {
-        const map = Math.round(dbp + (1/3) * (sbp - dbp));
-        setMeanPressure(map.toString());
-      }
-    }
-  }, [systolic, diastolic]);
-
   const toggleExpanded = () => {
     setExpanded(!expanded);
     // Reset success message when reopening the form
     if (!expanded) {
       setSuccess(false);
     }
+  };
+
+  // Helper function to convert Fahrenheit to Celsius
+  const fahrenheitToCelsius = (fahrenheit: number): number => {
+    return (fahrenheit - 32) * 5/9;
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -77,10 +81,14 @@ export const VitalSignForm: React.FC<VitalSignFormProps> = ({ patientId, onVital
         return;
       }
 
+      // Parse temperature from Fahrenheit to Celsius
+      const tempF = parseFloat(temperature);
+      const tempC = fahrenheitToCelsius(tempF);
+
       // Create vital sign object
       const newVitalSign: Omit<VitalSign, 'id'> = {
         timestamp: new Date(),
-        temperature: parseFloat(temperature),
+        temperature: tempC, // Store as Celsius in the database
         heartRate: parseInt(heartRate),
         respiratoryRate: parseInt(respiratoryRate),
         bloodPressure: {
@@ -88,7 +96,7 @@ export const VitalSignForm: React.FC<VitalSignFormProps> = ({ patientId, onVital
           diastolic: parseInt(diastolic),
           mean: meanPressure ? parseInt(meanPressure) : null
         },
-        oxygenSaturation: oxygenSaturation ? parseInt(oxygenSaturation) : null,
+        oxygenSaturation: oxygenSaturation ? parseInt(oxygenSaturation) : 0, // Default to 0 if empty
         etCO2: etCO2 ? parseInt(etCO2) : null,
         painScore: null,
         notes
@@ -167,23 +175,23 @@ export const VitalSignForm: React.FC<VitalSignFormProps> = ({ patientId, onVital
           <form onSubmit={handleSubmit}>
             <Stack spacing={3}>
               <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 2 }}>
-                <TextField
+                <NumberTextField
                   required
                   label="Temperature"
                   type="number"
                   value={temperature}
                   onChange={(e) => setTemperature(e.target.value)}
                   InputProps={{
-                    endAdornment: <InputAdornment position="end">°C</InputAdornment>,
+                    endAdornment: <InputAdornment position="end">°F</InputAdornment>,
                   }}
                   inputProps={{
                     step: 0.1,
-                    min: 35,
-                    max: 43
+                    min: 95,
+                    max: 107
                   }}
                   sx={{ flex: '1 1 200px' }}
                 />
-                <TextField
+                <NumberTextField
                   required
                   label="Heart Rate"
                   type="number"
@@ -199,7 +207,7 @@ export const VitalSignForm: React.FC<VitalSignFormProps> = ({ patientId, onVital
                   }}
                   sx={{ flex: '1 1 200px' }}
                 />
-                <TextField
+                <NumberTextField
                   required
                   label="Respiratory Rate"
                   type="number"
@@ -218,7 +226,7 @@ export const VitalSignForm: React.FC<VitalSignFormProps> = ({ patientId, onVital
               </Box>
               
               <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 2 }}>
-                <TextField
+                <NumberTextField
                   required
                   label="Systolic BP"
                   type="number"
@@ -234,7 +242,7 @@ export const VitalSignForm: React.FC<VitalSignFormProps> = ({ patientId, onVital
                   }}
                   sx={{ flex: '1 1 150px' }}
                 />
-                <TextField
+                <NumberTextField
                   required
                   label="Diastolic BP"
                   type="number"
@@ -250,8 +258,8 @@ export const VitalSignForm: React.FC<VitalSignFormProps> = ({ patientId, onVital
                   }}
                   sx={{ flex: '1 1 150px' }}
                 />
-                <Tooltip title="Mean Arterial Pressure (auto-calculated)">
-                  <TextField
+                <Tooltip title="Mean Arterial Pressure">
+                  <NumberTextField
                     label="Mean BP"
                     type="number"
                     value={meanPressure}
@@ -270,7 +278,7 @@ export const VitalSignForm: React.FC<VitalSignFormProps> = ({ patientId, onVital
               </Box>
               
               <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 2 }}>
-                <TextField
+                <NumberTextField
                   label="SpO2"
                   type="number"
                   value={oxygenSaturation}
@@ -285,7 +293,7 @@ export const VitalSignForm: React.FC<VitalSignFormProps> = ({ patientId, onVital
                   }}
                   sx={{ flex: '1 1 200px' }}
                 />
-                <TextField
+                <NumberTextField
                   label="ETCO2"
                   type="number"
                   value={etCO2}

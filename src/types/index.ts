@@ -10,10 +10,12 @@ export interface Patient {
   id: string;
   name: string;
   clientId: string;
+  ownerName?: string;
   species: string;
   breed: string;
   age: string;
   weight: string;
+  weightUnit?: 'kg' | 'lbs';
   status: 'Active' | 'Inactive';
 }
 
@@ -316,4 +318,15 @@ export interface LocalRegionalItem {
   concentration?: string;
   volume?: string;
   additives?: string;
+}
+
+// Event types for the vital signs chart
+export interface Event {
+  id: string;
+  timestamp: Date;
+  type: 'Medication' | 'Procedure' | 'Complication' | 'Note' | 'Other';
+  title: string;
+  details: string;
+  color?: string; // Optional color for the event marker
+  createdBy: string;
 } 

@@ -1,13 +1,7 @@
-import React, { useEffect, useRef, useState } from 'react';
-import { Typography, useTheme, IconButton, Box, ButtonGroup, Tooltip } from '@mui/material';
-import { Line } from 'react-chartjs-2';
-import ZoomInIcon from '@mui/icons-material/ZoomIn';
-import ZoomOutIcon from '@mui/icons-material/ZoomOut';
-import RestartAltIcon from '@mui/icons-material/RestartAlt';
-import ArrowLeftIcon from '@mui/icons-material/ArrowLeft';
-import ArrowRightIcon from '@mui/icons-material/ArrowRight';
-import OpenWithIcon from '@mui/icons-material/OpenWith';
-import { VitalSign } from '../types';
+import React, { useRef, useEffect, useState, forwardRef, useImperativeHandle } from 'react';
+import { Typography, useTheme, Button, Box, Tooltip as MuiTooltip } from '@mui/material';
+import AddIcon from '@mui/icons-material/Add';
+import EventIcon from '@mui/icons-material/Event';
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -17,49 +11,116 @@ import {
   Title,
   Tooltip as ChartTooltip,
   Legend,
-  ChartOptions,
-  ChartData,
   TimeScale,
+  ChartData,
+  ChartOptions,
 } from 'chart.js';
-import zoomPlugin from 'chartjs-plugin-zoom';
 import 'chartjs-adapter-date-fns';
+import { Line } from 'react-chartjs-2';
+import { VitalSign, Event } from '../types';
+import EventForm from './EventForm';
+import { getEvents } from '../services/patients';
 
-// Register ChartJS components
+// Register the required chart components
 ChartJS.register(
   CategoryScale,
   LinearScale,
-  TimeScale,
   PointElement,
   LineElement,
+  TimeScale,
   Title,
   ChartTooltip,
-  Legend,
-  zoomPlugin
+  Legend
 );
 
 interface VitalSignsChartProps {
   vitalSigns: VitalSign[];
+  patientId: string;
   onVisibleRangeChange?: (range: {
     start: Date;
     end: Date;
   }) => void;
+  timeRange?: {
+    startTime: Date;
+    endTime: Date;
+  };
 }
 
-export const VitalSignsChart: React.FC<VitalSignsChartProps> = ({ 
+// Define the type for the forwarded ref
+export interface VitalSignsChartRef {
+  getChart: () => ChartJS | null;
+  getChartImage: () => Promise<string | undefined>;
+}
+
+export const VitalSignsChart = forwardRef<VitalSignsChartRef, VitalSignsChartProps>(({ 
   vitalSigns,
-  onVisibleRangeChange
-}) => {
+  patientId,
+  onVisibleRangeChange,
+  timeRange,
+}, ref) => {
   const theme = useTheme();
   const chartContainer = useRef<HTMLDivElement>(null);
-  const chartInstance = useRef<ChartJS<'line'>>(null);
-  const [zoomLevel, setZoomLevel] = useState(1);
-  const [isPanMode, setIsPanMode] = useState(false);
-  
+  const chartInstanceRefInternal = useRef<ChartJS<'line'> | null>(null);
+  const [events, setEvents] = useState<Event[]>([]);
+  const [isEventFormOpen, setIsEventFormOpen] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [chartData, setChartData] = useState<ChartData<'line'>>({ datasets: [] });
+  const [chartOptions, setChartOptions] = useState<ChartOptions<'line'>>({});
+
+  // Expose the chart instance and image getter via the ref
+  useImperativeHandle(ref, () => ({
+    getChart: () => chartInstanceRefInternal.current,
+    getChartImage: (): Promise<string | undefined> => {
+      return new Promise((resolve) => {
+        // Delay before capturing
+        setTimeout(() => {
+          const chartInstance = chartInstanceRefInternal.current;
+          if (chartInstance) {
+            console.log('Calling toBase64Image after delay...');
+            try {
+              const imageData = chartInstance.toBase64Image('image/png', 1);
+              console.log('Image data obtained (length):', imageData?.length);
+              resolve(imageData);
+            } catch (e) {
+              console.error("Error calling toBase64Image:", e);
+              resolve(undefined);
+            }
+          } else {
+            console.error('Chart instance not found in getChartImage after delay.');
+            resolve(undefined);
+          }
+        }, 150); // 150ms delay
+      });
+    }
+  }));
+
   // Function to format timestamps
   const formatTime = (timestamp: Date) => {
     const date = new Date(timestamp);
     return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
   };
+  
+  // Helper function to convert Celsius to Fahrenheit
+  const celsiusToFahrenheit = (celsius: number): number => {
+    return (celsius * 9/5) + 32;
+  };
+  
+  // Load events
+  useEffect(() => {
+    const loadEvents = async () => {
+      try {
+        setLoading(true);
+        const fetchedEvents = await getEvents(patientId);
+        setEvents(fetchedEvents);
+      } catch (error) {
+        console.error('Error loading events:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    loadEvents();
+  }, [patientId]);
   
   // Sort vital signs by timestamp
   const sortedVitalSigns = [...vitalSigns].sort((a, b) => {
@@ -68,269 +129,348 @@ export const VitalSignsChart: React.FC<VitalSignsChartProps> = ({
     return dateA.getTime() - dateB.getTime();
   });
   
-  // Extract timestamps for x-axis
-  const labels = sortedVitalSigns.map((vs) => formatTime(vs.timestamp));
+  // Extract timestamps and data for chart
+  const timestamps = sortedVitalSigns.map((vs) => {
+    const timestamp = vs.timestamp instanceof Date ? vs.timestamp : new Date(vs.timestamp);
+    // Return only valid dates, filter out any invalid ones
+    return isNaN(timestamp.getTime()) ? null : timestamp;
+  }).filter((timestamp): timestamp is Date => timestamp !== null);
+
+  // Make sure we have valid timestamps before proceeding
+  if (timestamps.length === 0 && sortedVitalSigns.length > 0) {
+    console.error("No valid timestamps found in vital signs data");
+  }
   
-  // Extract data for different vital signs
-  const temperatureData = sortedVitalSigns.map((vs) => vs.temperature);
-  const heartRateData = sortedVitalSigns.map((vs) => vs.heartRate);
-  const respiratoryRateData = sortedVitalSigns.map((vs) => vs.respiratoryRate);
-  const systolicData = sortedVitalSigns.map((vs) => vs.bloodPressure.systolic);
-  const diastolicData = sortedVitalSigns.map((vs) => vs.bloodPressure.diastolic);
-  const meanData = sortedVitalSigns.map((vs) => vs.bloodPressure.mean);
-  const oxygenSaturationData = sortedVitalSigns.map((vs) => vs.oxygenSaturation);
-  const etCO2Data = sortedVitalSigns.map((vs) => vs.etCO2);
-  
-  // Set up chart data
-  const chartData: ChartData<'line'> = {
-    labels,
-    datasets: [
-      {
-        label: 'Temperature (°C)',
-        data: temperatureData,
-        borderColor: theme.palette.primary.main,
-        backgroundColor: 'rgba(255, 99, 132, 0.2)',
-        yAxisID: 'y',
-        tension: 0.3,
-      },
-      {
-        label: 'Heart Rate (bpm)',
-        data: heartRateData,
-        borderColor: theme.palette.secondary.main,
-        backgroundColor: 'rgba(54, 162, 235, 0.2)',
-        yAxisID: 'y',
-        tension: 0.3,
-      },
-      {
-        label: 'Respiratory Rate (bpm)',
-        data: respiratoryRateData,
-        borderColor: theme.palette.success.main,
-        backgroundColor: 'rgba(75, 192, 192, 0.2)',
-        yAxisID: 'y',
-        tension: 0.3,
-      },
-      {
-        label: 'Systolic BP (mmHg)',
-        data: systolicData,
-        borderColor: theme.palette.error.main,
-        backgroundColor: 'rgba(255, 159, 64, 0.2)',
-        yAxisID: 'y',
-        tension: 0.3,
-      },
-      {
-        label: 'Diastolic BP (mmHg)',
-        data: diastolicData,
-        borderColor: theme.palette.warning.main,
-        backgroundColor: 'rgba(255, 205, 86, 0.2)',
-        yAxisID: 'y',
-        tension: 0.3,
-        borderDash: [5, 5],
-      },
-      {
-        label: 'Mean BP (mmHg)',
-        data: meanData,
-        borderColor: '#FF6384',
-        backgroundColor: 'rgba(255, 99, 132, 0.2)',
-        yAxisID: 'y',
-        tension: 0.3,
-        borderDash: [10, 5],
-      },
-      {
-        label: 'SpO2 (%)',
-        data: oxygenSaturationData,
-        borderColor: '#4BC0C0',
-        backgroundColor: 'rgba(75, 192, 192, 0.2)',
-        yAxisID: 'y',
-        tension: 0.3,
-      },
-      {
-        label: 'ETCO2 (mmHg)',
-        data: etCO2Data,
-        borderColor: '#9966FF',
-        backgroundColor: 'rgba(153, 102, 255, 0.2)',
-        yAxisID: 'y',
-        tension: 0.3,
-      },
-    ],
+  // Determine the min and max times for the chart x-axis
+  const getTimeMinMax = () => {
+    // Always prioritize the timeRange prop from parent for consistent view
+    if (timeRange && timeRange.startTime && timeRange.endTime) {
+      const startValid = timeRange.startTime instanceof Date && !isNaN(timeRange.startTime.getTime());
+      const endValid = timeRange.endTime instanceof Date && !isNaN(timeRange.endTime.getTime());
+      
+      if (startValid && endValid) {
+        return {
+          minTime: timeRange.startTime,
+          maxTime: timeRange.endTime
+        };
+      }
+    }
+    
+    // Fallback to timestamps from data if available
+    if (timestamps.length > 0) {
+      return {
+        minTime: timestamps[0],
+        maxTime: timestamps[timestamps.length - 1]
+      };
+    }
+    
+    // Last resort fallback
+    const now = new Date();
+    return {
+      minTime: new Date(now.getTime() - 3600000), // 1 hour ago
+      maxTime: now
+    };
   };
   
-  const chartOptions: ChartOptions<'line'> = {
-    responsive: true,
-    maintainAspectRatio: false,
-    animation: {
-      duration: 250 // Faster animations for better performance during zooming
-    },
-    plugins: {
-      legend: {
-        position: 'top',
-        align: 'start',
-        labels: {
-          boxWidth: 15,
-          usePointStyle: true,
+  const { minTime, maxTime } = getTimeMinMax();
+  
+  // Format timestamps for labels
+  const labels = timestamps.map(formatTime);
+  
+  // Helper function to safely create data points
+  const createDataPoints = (vitalSigns: VitalSign[], valueKey: string, subKey?: string) => {
+    return vitalSigns
+      .filter(vs => {
+        const timestamp = vs.timestamp instanceof Date ? vs.timestamp : new Date(vs.timestamp);
+        if (isNaN(timestamp.getTime())) return false;
+        
+        // Check if the value exists and is valid
+        const value = subKey 
+          ? (vs as any)[valueKey]?.[subKey] 
+          : (vs as any)[valueKey];
+        
+        return value !== null && value !== undefined && !isNaN(Number(value));
+      })
+      .map(vs => {
+        const timestamp = vs.timestamp instanceof Date ? vs.timestamp : new Date(vs.timestamp);
+        let value = subKey 
+          ? (vs as any)[valueKey]?.[subKey] 
+          : (vs as any)[valueKey];
+        
+        // Convert temperature from Celsius to Fahrenheit
+        if (valueKey === 'temperature' && value !== null && value !== undefined) {
+          value = celsiusToFahrenheit(value);
+        }
+          
+        return {
+          x: timestamp.getTime(),
+          y: Number(value)
+        };
+      });
+  };
+
+  // Create annotations for events
+  const createEventAnnotations = () => {
+    if (!events.length) return {};
+    
+    const annotations: any = {};
+    
+    events.forEach((event, index) => {
+      const eventTime = event.timestamp instanceof Date ? 
+        event.timestamp : new Date(event.timestamp);
+        
+      annotations[`event-${event.id}`] = {
+        type: 'line',
+        borderColor: event.color || '#000000',
+        borderWidth: 2,
+        label: {
+          content: event.type,
+          enabled: true,
+          position: 'start',
+          backgroundColor: event.color || '#000000',
+          font: {
+            size: 10
+          }
         },
+        scaleID: 'x',
+        value: eventTime.getTime()
+      };
+    });
+    
+    return annotations;
+  };
+
+  // Effect to prepare chart data and options
+  useEffect(() => {
+    const newChartData: ChartData<'line'> = {
+      labels,
+      datasets: [
+        {
+          label: 'Temperature (°F)',
+          data: createDataPoints(sortedVitalSigns, 'temperature'),
+          borderColor: theme.palette.primary.main,
+          backgroundColor: 'rgba(255, 99, 132, 0.2)',
+          yAxisID: 'y',
+          tension: 0.3,
+        },
+        {
+          label: 'Heart Rate (bpm)',
+          data: createDataPoints(sortedVitalSigns, 'heartRate'),
+          borderColor: theme.palette.secondary.main,
+          backgroundColor: 'rgba(54, 162, 235, 0.2)',
+          yAxisID: 'y',
+          tension: 0.3,
+        },
+        {
+          label: 'Respiratory Rate (bpm)',
+          data: createDataPoints(sortedVitalSigns, 'respiratoryRate'),
+          borderColor: theme.palette.success.main,
+          backgroundColor: 'rgba(75, 192, 192, 0.2)',
+          yAxisID: 'y',
+          tension: 0.3,
+        },
+        {
+          label: 'Systolic BP (mmHg)',
+          data: createDataPoints(sortedVitalSigns, 'bloodPressure', 'systolic'),
+          borderColor: theme.palette.error.main,
+          backgroundColor: 'rgba(255, 159, 64, 0.2)',
+          yAxisID: 'y',
+          tension: 0.3,
+        },
+        {
+          label: 'Diastolic BP (mmHg)',
+          data: createDataPoints(sortedVitalSigns, 'bloodPressure', 'diastolic'),
+          borderColor: theme.palette.warning.main,
+          backgroundColor: 'rgba(255, 205, 86, 0.2)',
+          yAxisID: 'y',
+          tension: 0.3,
+          borderDash: [5, 5],
+        },
+        {
+          label: 'Mean BP (mmHg)',
+          data: createDataPoints(sortedVitalSigns, 'bloodPressure', 'mean'),
+          borderColor: '#FF6384',
+          backgroundColor: 'rgba(255, 99, 132, 0.2)',
+          yAxisID: 'y',
+          tension: 0.3,
+          borderDash: [10, 5],
+        },
+        {
+          label: 'SpO2 (%)',
+          data: createDataPoints(sortedVitalSigns, 'oxygenSaturation'),
+          borderColor: '#4BC0C0',
+          backgroundColor: 'rgba(75, 192, 192, 0.2)',
+          yAxisID: 'y',
+          tension: 0.3,
+        },
+        {
+          label: 'ETCO2 (mmHg)',
+          data: createDataPoints(sortedVitalSigns, 'etCO2'),
+          borderColor: '#9966FF',
+          backgroundColor: 'rgba(153, 102, 255, 0.2)',
+          yAxisID: 'y',
+          tension: 0.3,
+        },
+      ],
+    };
+    const newChartOptions: ChartOptions<'line'> = {
+      responsive: true,
+      maintainAspectRatio: false,
+      animation: {
+        duration: 0 // Disable animation for snapshots
       },
-      tooltip: {
-        mode: 'index',
-        intersect: false,
-      },
-      // Type assertion for zoom plugin options
-      //@ts-ignore
-      zoom: {
-        pan: {
-          enabled: isPanMode,
-          mode: 'x',
-        },
-        zoom: {
-          wheel: {
-            enabled: false, // Disable wheel zoom
-          },
-          pinch: {
-            enabled: false, // Disable pinch zoom
-          },
-          mode: 'x',
-          drag: {
-            enabled: false, // Disable drag zoom
+      plugins: {
+        legend: {
+          position: 'top',
+          align: 'start',
+          labels: {
+            boxWidth: 15,
+            usePointStyle: true,
           },
         },
-        limits: {
-          x: {
-            minRange: 2, // Minimum 2 data points visible
+        tooltip: {
+          enabled: true, // Keep tooltips enabled for interaction
+          mode: 'index',
+          intersect: false,
+          callbacks: {
+            afterBody: (tooltipItems) => {
+              if (!events.length) return [];
+              const tooltipTime = new Date(tooltipItems[0].parsed.x);
+              const tooltipTimestamp = tooltipTime.getTime();
+              const nearbyEvents = events.filter(event => {
+                const eventTime = event.timestamp instanceof Date ? event.timestamp : new Date(event.timestamp);
+                const diff = Math.abs(eventTime.getTime() - tooltipTimestamp);
+                return diff < 300000; // 5 minutes
+              });
+              if (nearbyEvents.length === 0) return [];
+              return [
+                '',
+                'Events:',
+                ...nearbyEvents.map(event => {
+                  const eventTime = event.timestamp instanceof Date ? event.timestamp : new Date(event.timestamp);
+                  return `${event.type}: ${event.title} (${eventTime.toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'})})`;
+                })
+              ];
+            }
           }
         }
       },
-    },
-    scales: {
-      x: {
-        ticks: {
-          maxRotation: 45,
-          autoSkip: true,
-          maxTicksLimit: 10
+      scales: {
+        x: {
+          type: 'time',
+          time: {
+            unit: 'minute',
+            displayFormats: { minute: 'h:mm a' },
+            tooltipFormat: 'h:mm a'
+          },
+          min: minTime.getTime(),
+          max: maxTime.getTime(),
+          ticks: {
+            source: 'auto',
+            maxRotation: 45,
+            autoSkip: true,
+            maxTicksLimit: 10
+          }
+        },
+        y: {
+          type: 'linear',
+          position: 'left',
+          min: 0,
+          max: 200,
+          title: { display: false }
         },
       },
-      y: {
-        type: 'linear',
-        position: 'left',
-        min: 0,
-        max: 200,
-        title: {
-          display: false
-        }
-      }
-    },
-  };
-  
-  // Handle zoom in
-  const handleZoomIn = () => {
-    if (chartInstance.current) {
-      // Use any type to avoid TypeScript errors with the plugin methods
-      (chartInstance.current as any).zoom(1.2);
-      setZoomLevel(prev => prev * 1.2);
-      
-      // Report visible range after zoom
-      if (onVisibleRangeChange) {
-        reportVisibleRange();
-      }
-    }
-  };
+    };
 
-  // Handle zoom out
-  const handleZoomOut = () => {
-    if (chartInstance.current) {
-      // Use any type to avoid TypeScript errors with the plugin methods
-      (chartInstance.current as any).zoom(0.8);
-      setZoomLevel(prev => prev * 0.8);
-      
-      // Report visible range after zoom
-      if (onVisibleRangeChange) {
-        reportVisibleRange();
-      }
-    }
-  };
+    setChartData(newChartData);
+    setChartOptions(newChartOptions);
 
-  // Handle reset zoom and pan
-  const handleResetZoom = () => {
-    if (chartInstance.current) {
-      // Use any type to avoid TypeScript errors with the plugin methods
-      (chartInstance.current as any).resetZoom();
-      setZoomLevel(1);
-      setIsPanMode(false);
-      
-      // Report visible range after reset
-      if (onVisibleRangeChange) {
-        reportVisibleRange();
-      }
+  }, [vitalSigns, events, timeRange, theme]);
+
+  // Handle event form
+  const handleOpenEventForm = () => {
+    setIsEventFormOpen(true);
+  };
+  
+  const handleCloseEventForm = () => {
+    setIsEventFormOpen(false);
+  };
+  
+  const handleEventAdded = async () => {
+    try {
+      setLoading(true);
+      const updatedEvents = await getEvents(patientId);
+      setEvents(updatedEvents);
+    } catch (error) {
+      console.error('Error refreshing events:', error);
+    } finally {
+      setLoading(false);
     }
   };
   
-  // Handle panning left
-  const handlePanLeft = () => {
-    if (chartInstance.current) {
-      // Use any type to avoid TypeScript errors with the plugin methods
-      (chartInstance.current as any).pan({ x: 100 }, undefined, 'default');
+  // Display event markers on the chart
+  const renderEventMarkers = () => {
+    if (!events.length || !chartContainer.current) return null;
+    
+    // Use the chart's width to calculate positions
+    const chartWidth = chartContainer.current.clientWidth;
+    const timeDuration = maxTime.getTime() - minTime.getTime();
+    
+    if (timeDuration <= 0) return null; // Avoid division by zero
+
+    return events.map((event) => {
+      const eventTime = event.timestamp instanceof Date ? 
+        event.timestamp : new Date(event.timestamp);
       
-      // Report visible range after pan
-      if (onVisibleRangeChange) {
-        reportVisibleRange();
-      }
-    }
-  };
-  
-  // Handle panning right
-  const handlePanRight = () => {
-    if (chartInstance.current) {
-      // Use any type to avoid TypeScript errors with the plugin methods
-      (chartInstance.current as any).pan({ x: -100 }, undefined, 'default');
+      // Calculate position as percentage of chart width
+      const timeDiff = eventTime.getTime() - minTime.getTime();
+      const positionPercent = (timeDiff / timeDuration) * 100;
       
-      // Report visible range after pan
-      if (onVisibleRangeChange) {
-        reportVisibleRange();
-      }
-    }
-  };
-  
-  // Toggle pan mode
-  const togglePanMode = () => {
-    setIsPanMode(!isPanMode);
-  };
-  
-  // Function to report visible time range
-  const reportVisibleRange = () => {
-    setTimeout(() => {
-      if (chartInstance.current && sortedVitalSigns.length > 0 && onVisibleRangeChange) {
-        const chart = chartInstance.current as any;
-        
-        if (chart && chart.scales && chart.scales.x) {
-          const min = chart.scales.x.min;
-          const max = chart.scales.x.max;
-          
-          // Convert min/max indices to actual dates
-          const minIndex = Math.max(0, Math.floor(min));
-          const maxIndex = Math.min(sortedVitalSigns.length - 1, Math.ceil(max));
-          
-          // Get the actual timestamps
-          const startTime = sortedVitalSigns[minIndex].timestamp instanceof Date 
-            ? sortedVitalSigns[minIndex].timestamp 
-            : new Date(sortedVitalSigns[minIndex].timestamp);
-            
-          const endTime = sortedVitalSigns[maxIndex].timestamp instanceof Date
-            ? sortedVitalSigns[maxIndex].timestamp
-            : new Date(sortedVitalSigns[maxIndex].timestamp);
-          
-          // Report the range change
-          onVisibleRangeChange({
-            start: startTime,
-            end: endTime
-          });
-        }
-      }
-    }, 200); // Short delay to ensure chart has updated
+      // Only show markers within the visible range
+      if (positionPercent < 0 || positionPercent > 100) return null;
+      
+      return (
+        <MuiTooltip
+          key={event.id}
+          title={
+            <Box sx={{ fontSize: '0.75rem' }}>
+              <strong>{event.title}</strong>
+              <div>Type: {event.type}</div>
+              <div>Time: {eventTime.toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'})}</div>
+              {event.details && <div>Details: {event.details}</div>}
+            </Box>
+          }
+          placement="top"
+          arrow
+        >
+          <div
+            style={{
+              position: 'absolute',
+              left: `${positionPercent}%`,
+              bottom: 0,
+              transform: 'translateX(-50%)',
+              cursor: 'pointer',
+              zIndex: 10
+            }}
+          >
+            <EventIcon
+              sx={{
+                color: event.color || theme.palette.grey[700],
+                fontSize: 20,
+                mb: 1
+              }}
+            />
+          </div>
+        </MuiTooltip>
+      );
+    });
   };
   
   // Resize handler for chart responsiveness
   useEffect(() => {
     const handleResize = () => {
-      if (chartInstance.current) {
-        chartInstance.current.resize();
+      if (chartInstanceRefInternal.current) {
+        chartInstanceRefInternal.current.resize();
       }
     };
 
@@ -345,67 +485,24 @@ export const VitalSignsChart: React.FC<VitalSignsChartProps> = ({
     };
   }, []);
 
-  // Update chart options when pan mode changes
-  useEffect(() => {
-    if (chartInstance.current) {
-      // Update chart options with current isPanMode state
-      // Use type assertion to avoid TypeScript errors
-      const chart = chartInstance.current as any;
-      if (chart.options && chart.options.plugins && chart.options.plugins.zoom && chart.options.plugins.zoom.pan) {
-        chart.options.plugins.zoom.pan.enabled = isPanMode;
-        chart.update();
-      }
-    }
-  }, [isPanMode]);
-
   return (
-    <div style={{ width: '100%', padding: '0', margin: '0' }}>
+    <Box sx={{ position: 'relative' }} ref={chartContainer}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-        <Typography variant="h6">
-          Vital Signs Chart
-        </Typography>
-        
-        <div style={{ display: 'flex', alignItems: 'center' }}>
-          <Typography variant="caption" style={{ marginRight: '8px' }}>
-            {zoomLevel !== 1 ? 'Zoom: ' + Math.round(zoomLevel * 100) + '%' : ''}
+        <div>
+          <Typography variant="h6">
+            Vital Signs Chart
           </Typography>
-          <ButtonGroup size="small" aria-label="chart controls">
-            <Tooltip title="Zoom In">
-              <IconButton size="small" onClick={handleZoomIn}>
-                <ZoomInIcon fontSize="small" />
-              </IconButton>
-            </Tooltip>
-            <Tooltip title="Zoom Out">
-              <IconButton size="small" onClick={handleZoomOut}>
-                <ZoomOutIcon fontSize="small" />
-              </IconButton>
-            </Tooltip>
-            <Tooltip title="Pan Left">
-              <IconButton size="small" onClick={handlePanLeft}>
-                <ArrowLeftIcon fontSize="small" />
-              </IconButton>
-            </Tooltip>
-            <Tooltip title="Pan Right">
-              <IconButton size="small" onClick={handlePanRight}>
-                <ArrowRightIcon fontSize="small" />
-              </IconButton>
-            </Tooltip>
-            <Tooltip title={isPanMode ? "Disable Pan Mode" : "Enable Pan Mode"}>
-              <IconButton 
-                size="small" 
-                onClick={togglePanMode}
-                color={isPanMode ? "primary" : "default"}
-              >
-                <OpenWithIcon fontSize="small" />
-              </IconButton>
-            </Tooltip>
-            <Tooltip title="Reset View">
-              <IconButton size="small" onClick={handleResetZoom}>
-                <RestartAltIcon fontSize="small" />
-              </IconButton>
-            </Tooltip>
-          </ButtonGroup>
         </div>
+        
+        <Button
+          variant="contained"
+          color="primary"
+          startIcon={<AddIcon />}
+          onClick={handleOpenEventForm}
+          size="small"
+        >
+          Log Event
+        </Button>
       </div>
 
       {vitalSigns.length === 0 ? (
@@ -414,22 +511,34 @@ export const VitalSignsChart: React.FC<VitalSignsChartProps> = ({
         </Typography>
       ) : (
         <div 
-          ref={chartContainer} 
           style={{
             width: '100%',
             height: '500px',
             padding: '16px',
             margin: '0',
-            position: 'relative'
           }}
         >
           <Line
-            ref={chartInstance}
+            ref={chartInstanceRefInternal}
             data={chartData}
             options={chartOptions}
           />
+          
+          {/* Event markers */}
+          <div style={{ position: 'absolute', bottom: 25, left: 0, right: 0, height: 30, pointerEvents: 'none' }}>
+            {renderEventMarkers()}
+          </div>
         </div>
       )}
-    </div>
+      
+      {/* Event Form */}
+      <EventForm
+        open={isEventFormOpen}
+        onClose={handleCloseEventForm}
+        patientId={patientId}
+        onEventAdded={handleEventAdded}
+        initialTimestamp={new Date()}
+      />
+    </Box>
   );
-}; 
+}); 

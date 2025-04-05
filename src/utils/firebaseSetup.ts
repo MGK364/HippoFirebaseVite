@@ -1,6 +1,7 @@
 import { db } from '../services/firebase';
 import { collection, doc, setDoc, getDoc, getDocs } from 'firebase/firestore';
 import { User } from '../types';
+import { initializeFormulary } from '../services/formulary';
 
 /**
  * Initializes the basic structure for a new Firebase database
@@ -63,6 +64,9 @@ export const initializeFirebaseDatabase = async (currentUser: User): Promise<boo
       clinicId: 'default',
       createdAt: new Date()
     });
+    
+    // Initialize the formulary with default drugs
+    await initializeFormulary();
     
     // Set the initialization flag
     await setDoc(settingsRef, {

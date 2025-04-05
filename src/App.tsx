@@ -11,6 +11,7 @@ import AnesthesiaPlanEdit from './pages/AnesthesiaPlanEdit';
 import AdminDashboard from './pages/AdminDashboard';
 import NewPatient from './pages/NewPatient';
 import EditPatient from './pages/EditPatient';
+import FormularyPage from './pages/FormularyPage';
 import { useAuth } from './contexts/AuthContext';
 
 // Create a theme instance
@@ -74,6 +75,7 @@ function App() {
             <Route path="/patients/:patientId/medical-summary/edit" element={<PrivateLayout><MedicalSummaryEdit /></PrivateLayout>} />
             <Route path="/patients/:patientId/anesthesia-plan/edit" element={<PrivateLayout><AnesthesiaPlanEdit /></PrivateLayout>} />
             <Route path="/admin" element={<PrivateLayout><AdminDashboard /></PrivateLayout>} />
+            <Route path="/formulary" element={<PrivateLayout><FormularyPage /></PrivateLayout>} />
             
             {/* Redirect any unknown routes to home */}
             <Route path="*" element={<Navigate to="/" />} />

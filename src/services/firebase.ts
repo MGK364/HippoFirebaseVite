@@ -10,7 +10,7 @@ const firebaseConfig = {
   apiKey: "AIzaSyA3Synno8cnUkfREqfNfgFHcXMpSoKpsT4",
   authDomain: "vet-emr-react.firebaseapp.com",
   projectId: "vet-emr-react",
-  storageBucket: "vet-emr-react.firebasestorage.app",
+  storageBucket: "vet-emr-react.appspot.com",
   messagingSenderId: "65377194607",
   appId: "1:65377194607:web:bd4dfce9a56db5357bf39a",
   measurementId: "G-9VZ89VK3WR"

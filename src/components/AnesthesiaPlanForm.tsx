@@ -1671,9 +1671,8 @@ const AnesthesiaPlanForm: React.FC<AnesthesiaPlanFormProps> = ({
       
       {/* Local Regional Anesthesia Section */}
       <Paper sx={{ p: 2, mb: 3 }}>
-        <Typography variant="h6" sx={{ mb: 2 }}>Local Regional Anesthesia</Typography>
         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-          <Typography variant="body2" color="text.secondary">Add local/regional anesthetic techniques</Typography>
+          <Typography variant="h6">Local Regional Anesthesia</Typography>
           <Button 
             startIcon={<AddCircleOutlineIcon />}
             onClick={addLocalRegional}
@@ -1800,7 +1799,56 @@ const AnesthesiaPlanForm: React.FC<AnesthesiaPlanFormProps> = ({
         )}
       </Paper>
       
-      {/* Monitoring Plan Section - Moved up from below Emergency Drugs */}
+      {/* Post-Operative Plan Section - Moved up */}
+      <Paper sx={{ p: 2, mb: 3 }}>
+        <Typography variant="h6" sx={{ mb: 2 }}>Post-Operative Plan</Typography>
+        
+        <MuiGrid container spacing={3}>
+          <MuiGrid item xs={12} md={8}>
+            <TextField
+              fullWidth
+              label="Post-Operative Plan"
+              value={plan.postOpPlan || ''}
+              onChange={handleTextChange('postOpPlan')}
+              multiline
+              rows={4}
+              placeholder="Detailed post-operative care instructions, including pain management, monitoring requirements, etc."
+            />
+          </MuiGrid>
+          
+          <MuiGrid item xs={12} md={4}>
+            <Typography variant="subtitle2" gutterBottom>Recovery Area</Typography>
+            <FormControl fullWidth size="small">
+              <Select
+                value={plan.recoveryArea}
+                onChange={(e) => setPlan(prev => ({ 
+                  ...prev, 
+                  recoveryArea: e.target.value as any,
+                  recoveryAreaOther: e.target.value === 'Other' ? prev.recoveryAreaOther : '' 
+                }))}
+              >
+                <MenuItem value="Anesthesia">Anesthesia</MenuItem>
+                <MenuItem value="ICU">ICU</MenuItem>
+                <MenuItem value="Wards">Wards</MenuItem>
+                <MenuItem value="Other">Other</MenuItem>
+              </Select>
+            </FormControl>
+            
+            {plan.recoveryArea === 'Other' && (
+              <TextField
+                fullWidth
+                placeholder="Specify recovery area"
+                value={plan.recoveryAreaOther || ''}
+                onChange={(e) => setPlan(prev => ({ ...prev, recoveryAreaOther: e.target.value }))}
+                size="small"
+                sx={{ mt: 1 }}
+              />
+            )}
+          </MuiGrid>
+        </MuiGrid>
+      </Paper>
+      
+      {/* Monitoring Plan Section */}
       <Paper sx={{ p: 2, mb: 3 }}>
         <Typography variant="h6" sx={{ mb: 2 }}>Monitoring Plan</Typography>
         
@@ -1883,6 +1931,58 @@ const AnesthesiaPlanForm: React.FC<AnesthesiaPlanFormProps> = ({
           >
             Second IV
           </ToggleButton>
+
+          <ToggleButton
+            value="centralLine"
+            selected={plan.monitoringPlan.centralLine}
+            onChange={handleToggleMonitoringEquipment('centralLine')}
+            sx={{ 
+              minWidth: '120px', 
+              bgcolor: plan.monitoringPlan.centralLine ? 'primary.dark' : 'background.paper',
+              color: plan.monitoringPlan.centralLine ? 'primary.contrastText' : 'text.primary',
+              border: plan.monitoringPlan.centralLine ? '1px solid transparent' : '1px solid rgba(0, 0, 0, 0.23)',
+              fontWeight: plan.monitoringPlan.centralLine ? 'bold' : 'normal',
+              '&.Mui-selected': {
+                bgcolor: 'primary.dark',
+                color: 'primary.contrastText',
+              },
+              '&.Mui-selected:hover': {
+                bgcolor: 'primary.dark',
+                color: 'primary.contrastText'
+              },
+              '&:hover': {
+                bgcolor: plan.monitoringPlan.centralLine ? 'primary.dark' : 'rgba(0, 0, 0, 0.04)'
+              }
+            }}
+          >
+            Central Line
+          </ToggleButton>
+          
+          <ToggleButton
+            value="arterialLine"
+            selected={plan.monitoringPlan.arterialLine}
+            onChange={handleToggleMonitoringEquipment('arterialLine')}
+            sx={{ 
+              minWidth: '120px', 
+              bgcolor: plan.monitoringPlan.arterialLine ? 'primary.dark' : 'background.paper',
+              color: plan.monitoringPlan.arterialLine ? 'primary.contrastText' : 'text.primary',
+              border: plan.monitoringPlan.arterialLine ? '1px solid transparent' : '1px solid rgba(0, 0, 0, 0.23)',
+              fontWeight: plan.monitoringPlan.arterialLine ? 'bold' : 'normal',
+              '&.Mui-selected': {
+                bgcolor: 'primary.dark',
+                color: 'primary.contrastText',
+              },
+              '&.Mui-selected:hover': {
+                bgcolor: 'primary.dark',
+                color: 'primary.contrastText'
+              },
+              '&:hover': {
+                bgcolor: plan.monitoringPlan.arterialLine ? 'primary.dark' : 'rgba(0, 0, 0, 0.04)'
+              }
+            }}
+          >
+            Arterial Line
+          </ToggleButton>
           
           <ToggleButton
             value="ivCatheterInPlace"
@@ -1936,7 +2036,7 @@ const AnesthesiaPlanForm: React.FC<AnesthesiaPlanFormProps> = ({
               }
             }}
           >
-            SpO2
+            SpO₂
           </ToggleButton>
           
           <ToggleButton
@@ -2014,7 +2114,7 @@ const AnesthesiaPlanForm: React.FC<AnesthesiaPlanFormProps> = ({
               }
             }}
           >
-            ETCO2
+            EtCO2
           </ToggleButton>
           
           <ToggleButton
@@ -2094,111 +2194,12 @@ const AnesthesiaPlanForm: React.FC<AnesthesiaPlanFormProps> = ({
           >
             Doppler
           </ToggleButton>
-          
-          <ToggleButton
-            value="arterialLine"
-            selected={plan.monitoringPlan.arterialLine}
-            onChange={handleToggleMonitoringEquipment('arterialLine')}
-            sx={{ 
-              minWidth: '120px', 
-              bgcolor: plan.monitoringPlan.arterialLine ? 'primary.dark' : 'background.paper',
-              color: plan.monitoringPlan.arterialLine ? 'primary.contrastText' : 'text.primary',
-              border: plan.monitoringPlan.arterialLine ? '1px solid transparent' : '1px solid rgba(0, 0, 0, 0.23)',
-              fontWeight: plan.monitoringPlan.arterialLine ? 'bold' : 'normal',
-              '&.Mui-selected': {
-                bgcolor: 'primary.dark',
-                color: 'primary.contrastText',
-              },
-              '&.Mui-selected:hover': {
-                bgcolor: 'primary.dark',
-                color: 'primary.contrastText'
-              },
-              '&:hover': {
-                bgcolor: plan.monitoringPlan.arterialLine ? 'primary.dark' : 'rgba(0, 0, 0, 0.04)'
-              }
-            }}
-          >
-            Arterial Line
-          </ToggleButton>
-          
-          <ToggleButton
-            value="centralLine"
-            selected={plan.monitoringPlan.centralLine}
-            onChange={handleToggleMonitoringEquipment('centralLine')}
-            sx={{ 
-              minWidth: '120px', 
-              bgcolor: plan.monitoringPlan.centralLine ? 'primary.dark' : 'background.paper',
-              color: plan.monitoringPlan.centralLine ? 'primary.contrastText' : 'text.primary',
-              border: plan.monitoringPlan.centralLine ? '1px solid transparent' : '1px solid rgba(0, 0, 0, 0.23)',
-              fontWeight: plan.monitoringPlan.centralLine ? 'bold' : 'normal',
-              '&.Mui-selected': {
-                bgcolor: 'primary.dark',
-                color: 'primary.contrastText',
-              },
-              '&.Mui-selected:hover': {
-                bgcolor: 'primary.dark',
-                color: 'primary.contrastText'
-              },
-              '&:hover': {
-                bgcolor: plan.monitoringPlan.centralLine ? 'primary.dark' : 'rgba(0, 0, 0, 0.04)'
-              }
-            }}
-          >
-            Central Line
-          </ToggleButton>
-          
-          <ToggleButton
-            value="nmbMonitoring"
-            selected={plan.nmbMonitoring || false}
-            onChange={handleToggleNMBMonitoring}
-            sx={{ 
-              minWidth: '120px', 
-              bgcolor: plan.nmbMonitoring ? 'primary.dark' : 'background.paper',
-              color: plan.nmbMonitoring ? 'primary.contrastText' : 'text.primary',
-              border: plan.nmbMonitoring ? '1px solid transparent' : '1px solid rgba(0, 0, 0, 0.23)',
-              fontWeight: plan.nmbMonitoring ? 'bold' : 'normal',
-              '&.Mui-selected': {
-                bgcolor: 'primary.dark',
-                color: 'primary.contrastText',
-              },
-              '&.Mui-selected:hover': {
-                bgcolor: 'primary.dark',
-                color: 'primary.contrastText'
-              },
-              '&:hover': {
-                bgcolor: plan.nmbMonitoring ? 'primary.dark' : 'rgba(0, 0, 0, 0.04)'
-              }
-            }}
-          >
-            NMB Monitoring
-          </ToggleButton>
+
+         
         </Box>
         
-        <Typography variant="subtitle2" sx={{ mt: 2, mb: 1 }}>Blood Volume Calculation</Typography>
-        <MuiGrid container spacing={2} sx={{ mb: 2 }}>
-          <MuiGrid item xs={12} md={6} lg={4}>
-            <TextField
-              fullWidth
-              label="Species"
-              value={plan.species || ''}
-              onChange={(e) => setPlan(prev => ({ ...prev, species: e.target.value }))}
-              size="small"
-              placeholder="Dog, Cat, Rabbit, etc."
-            />
-          </MuiGrid>
-          <MuiGrid item xs={12} md={6} lg={4}>
-            <TextField
-              fullWidth
-              label="Total Blood Volume"
-              value={plan.totalBloodVolume || ''}
-              onChange={(e) => setPlan(prev => ({ ...prev, totalBloodVolume: e.target.value }))}
-              size="small"
-              placeholder="e.g. 90 mL/kg (dogs), 60 mL/kg (cats)"
-              helperText="Estimate: Dogs 80-90 mL/kg, Cats 50-60 mL/kg"
-            />
-          </MuiGrid>
-        </MuiGrid>
-
+        {/* Additional Equipment section */}
+        <Typography variant="subtitle2" sx={{ mt: 3, mb: 1 }}>Additional Equipment</Typography>
         <Box sx={{ mb: 2 }}>
         <MuiGrid container spacing={2}>
             <MuiGrid item xs={12} md={6}>
@@ -2253,16 +2254,51 @@ const AnesthesiaPlanForm: React.FC<AnesthesiaPlanFormProps> = ({
                           }}
             />
           </MuiGrid>
-                    </MuiGrid>
+          </MuiGrid>
                   </Box>
                 )}
               </Box>
+          </MuiGrid>
+            
+            <MuiGrid item xs={12} md={6}>
+            <FormControlLabel
+              control={
+                <Checkbox 
+                    checked={plan.nmbMonitoring || false}
+                    onChange={(e) => setPlan(prev => ({ ...prev, nmbMonitoring: e.target.checked }))}
+                />
+              }
+                label="NMB Monitoring"
+            />
+          </MuiGrid>
+        </MuiGrid>
+        </Box>
+        
+        {/* Total Blood Volume calculation */}
+        <Typography variant="subtitle2" sx={{ mt: 3, mb: 1 }}>Blood Volume Estimation</Typography>
+        <Box sx={{ mb: 2 }}>
+          <MuiGrid container spacing={2}>
+            <MuiGrid item xs={12} md={6}>
+        <TextField
+          fullWidth
+                label="Total Blood Volume"
+                value={plan.totalBloodVolume}
+                onChange={(e) => setPlan(prev => ({ ...prev, totalBloodVolume: e.target.value }))}
+                variant="outlined"
+                size="small"
+                InputProps={{
+                  endAdornment: <InputAdornment position="end">ml</InputAdornment>,
+                }}
+              />
+              <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5 }}>
+                Calculated at 90ml/kg for dogs and 60ml/kg for cats based on patient weight
+              </Typography>
             </MuiGrid>
           </MuiGrid>
         </Box>
       </Paper>
       
-      {/* Emergency Drugs and Reversals - Card Display */}
+      {/* Emergency Drugs and Reversals - Card Display - Moved to the bottom */}
       <Paper sx={{ p: 2, mb: 3 }}>
         <Typography variant="h6" sx={{ mb: 2 }}>Emergency Drugs and Reversals</Typography>
         
@@ -2285,56 +2321,7 @@ const AnesthesiaPlanForm: React.FC<AnesthesiaPlanFormProps> = ({
           ))}
         </Box>
       </Paper>
-
-      <Paper sx={{ p: 2, mb: 3 }}>
-        <Typography variant="h6" sx={{ mb: 2 }}>Post-Operative Plan</Typography>
-        
-        <MuiGrid container spacing={3}>
-          <MuiGrid item xs={12} md={8}>
-            <TextField
-              fullWidth
-              label="Post-Operative Plan"
-              value={plan.postOpPlan || ''}
-              onChange={handleTextChange('postOpPlan')}
-              multiline
-              rows={4}
-              placeholder="Detailed post-operative care instructions, including pain management, monitoring requirements, etc."
-            />
-          </MuiGrid>
-          
-          <MuiGrid item xs={12} md={4}>
-            <Typography variant="subtitle2" gutterBottom>Recovery Area</Typography>
-            <FormControl fullWidth size="small">
-              <Select
-                value={plan.recoveryArea}
-                onChange={(e) => setPlan(prev => ({ 
-                  ...prev, 
-                  recoveryArea: e.target.value as any,
-                  recoveryAreaOther: e.target.value === 'Other' ? prev.recoveryAreaOther : '' 
-                }))}
-              >
-                <MenuItem value="Anesthesia">Anesthesia</MenuItem>
-                <MenuItem value="ICU">ICU</MenuItem>
-                <MenuItem value="Wards">Wards</MenuItem>
-                <MenuItem value="Other">Other</MenuItem>
-              </Select>
-            </FormControl>
-            
-            {plan.recoveryArea === 'Other' && (
-              <TextField
-                fullWidth
-                placeholder="Specify recovery area"
-                value={plan.recoveryAreaOther || ''}
-                onChange={(e) => setPlan(prev => ({ ...prev, recoveryAreaOther: e.target.value }))}
-                size="small"
-                sx={{ mt: 1 }}
-              />
-            )}
-          </MuiGrid>
-        </MuiGrid>
-      </Paper>
       
-      {/* IMPORTANT: REMOVE THE DUPLICATED MONITORING PLAN SECTION */}      
       <Box sx={{ mt: 3, display: 'flex', justifyContent: 'flex-end' }}>
         <Button
           type="submit"

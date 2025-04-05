@@ -14,13 +14,14 @@ import {
   setDoc
 } from 'firebase/firestore';
 import { db } from './firebase';
-import { Patient, VitalSign, Medication, PatientHistory, AnesthesiaBolus, AnesthesiaCRI, MedicalSummary, AnesthesiaPlan } from '../types';
+import { Patient, VitalSign, Medication, PatientHistory, AnesthesiaBolus, AnesthesiaCRI, MedicalSummary, AnesthesiaPlan, Event } from '../types';
 
 // Collection references
 const patientsCollection = 'patients';
 const getVitalSignsCollection = (patientId: string) => `patients/${patientId}/vitalSigns`;
 const getMedicationsCollection = (patientId: string) => `patients/${patientId}/medications`;
 const getHistoryCollection = (patientId: string) => `patients/${patientId}/history`;
+const getEventsCollection = (patientId: string) => `patients/${patientId}/events`;
 
 // Anesthesia medications collection paths
 const getAnesthesiaMedicationsPath = (patientId: string) => `patients/${patientId}/anesthesiaMedications`;
@@ -1118,4 +1119,66 @@ const createMockAnesthesiaPlan = (patientId: string): AnesthesiaPlan => {
     createdBy: 'Mock User',
     createdAt: new Date(),
   };
+};
+
+// Get events for a patient
+export const getEvents = async (patientId: string): Promise<Event[]> => {
+  if (DEVELOPMENT_MODE) {
+    // Return mock events in development mode
+    return [];
+  }
+  
+  try {
+    const snapshot = await getDocs(collection(db, getEventsCollection(patientId)));
+    
+    return snapshot.docs.map(doc => {
+      const data = doc.data();
+      return {
+        id: doc.id,
+        timestamp: data.timestamp?.toDate() || new Date(data.timestamp),
+        type: data.type,
+        title: data.title,
+        details: data.details,
+        color: data.color,
+        createdBy: data.createdBy
+      } as Event;
+    });
+  } catch (error) {
+    console.error('Error getting events:', error);
+    throw error;
+  }
+};
+
+// Add an event for a patient
+export const addEvent = async (patientId: string, event: Omit<Event, 'id'>): Promise<Event> => {
+  if (DEVELOPMENT_MODE) {
+    const mockId = `event-${patientId}-${Date.now()}`;
+    return { ...event, id: mockId };
+  }
+  
+  try {
+    const docRef = await addDoc(collection(db, getEventsCollection(patientId)), {
+      ...event,
+      createdAt: serverTimestamp()
+    });
+    
+    return { id: docRef.id, ...event };
+  } catch (error) {
+    console.error('Error adding event:', error);
+    throw error;
+  }
+};
+
+// Delete an event
+export const deleteEvent = async (patientId: string, eventId: string): Promise<void> => {
+  if (DEVELOPMENT_MODE) {
+    return;
+  }
+  
+  try {
+    await deleteDoc(doc(db, getEventsCollection(patientId), eventId));
+  } catch (error) {
+    console.error('Error deleting event:', error);
+    throw error;
+  }
 }; 

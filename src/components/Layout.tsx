@@ -19,6 +19,7 @@ import PetsIcon from '@mui/icons-material/Pets';
 import HomeIcon from '@mui/icons-material/Home';
 import LogoutIcon from '@mui/icons-material/Logout';
 import AdminPanelSettingsIcon from '@mui/icons-material/AdminPanelSettings';
+import MedicationIcon from '@mui/icons-material/Medication';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 
@@ -59,6 +60,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
   const menuItems = [
     { text: 'Dashboard', icon: <HomeIcon />, path: '/' },
     { text: 'Patients', icon: <PetsIcon />, path: '/patients' },
+    { text: 'Formulary', icon: <MedicationIcon />, path: '/formulary' },
     { text: 'Admin', icon: <AdminPanelSettingsIcon />, path: '/admin' }
   ];
 
@@ -101,31 +103,6 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
 
   return (
     <div style={{ display: 'flex', height: '100vh', width: '100vw', overflow: 'hidden' }}>
-      {/* App Bar */}
-      <AppBar
-        position="fixed"
-        sx={{
-          width: { sm: `calc(100% - ${drawerWidth}px)` },
-          ml: { sm: `${drawerWidth}px` },
-          zIndex: (theme) => theme.zIndex.drawer + 1
-        }}
-      >
-        <Toolbar>
-          <IconButton
-            color="inherit"
-            aria-label="open drawer"
-            edge="start"
-            onClick={handleDrawerToggle}
-            sx={{ mr: 2, display: { sm: 'none' } }}
-          >
-            <MenuIcon />
-          </IconButton>
-          <Typography variant="h6" noWrap component="div">
-            Veterinary Anesthesia Management
-          </Typography>
-        </Toolbar>
-      </AppBar>
-      
       {/* Sidebar */}
       <Drawer
         variant="temporary"
@@ -153,15 +130,50 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
         {drawer}
       </Drawer>
       
-      {/* Main content */}
+      {/* Main content area including AppBar and content */}
       <div style={{ 
         flexGrow: 1, 
+        display: 'flex',
+        flexDirection: 'column',
         width: '100%', 
-        padding: '24px', 
-        marginTop: '64px',
-        overflow: 'auto'
+        height: '100vh',
+        overflow: 'hidden'
       }}>
-        {children}
+        {/* App Bar */}
+        <AppBar
+          position="static"
+          sx={{
+            width: '100%',
+            height: '48px',
+            zIndex: (theme) => theme.zIndex.drawer + 1,
+            ml: { xs: 0, sm: 0 }
+          }}
+        >
+          <Toolbar sx={{ minHeight: '48px !important', p: '0 16px' }}>
+            <IconButton
+              color="inherit"
+              aria-label="open drawer"
+              edge="start"
+              onClick={handleDrawerToggle}
+              sx={{ mr: 2, display: { sm: 'none' } }}
+            >
+              <MenuIcon />
+            </IconButton>
+            <Typography variant="h6" noWrap component="div" sx={{ fontSize: '1rem' }}>
+              Veterinary Anesthesia Management
+            </Typography>
+          </Toolbar>
+        </AppBar>
+        
+        {/* Page content */}
+        <div style={{ 
+          flexGrow: 1,
+          padding: '16px 24px',
+          overflow: 'auto',
+          backgroundColor: '#fff'
+        }}>
+          {children}
+        </div>
       </div>
     </div>
   );

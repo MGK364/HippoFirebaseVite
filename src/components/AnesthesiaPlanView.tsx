@@ -212,12 +212,12 @@ const AnesthesiaPlanView: React.FC<AnesthesiaPlanViewProps> = ({ plan, loading, 
       <MuiGrid container spacing={3}>
         {/* Left column */}
         <MuiGrid item xs={12} md={6} sx={{ display: 'flex', flexDirection: 'column' }}>
-          {/* Premedications */}
-          {hasPremedications && (
+      {/* Premedications */}
+      {hasPremedications && (
             <SectionCard>
               <CardHeaderStyled title="Premedications" />
               <CardContentStyled>
-                {plan.premedications.map((med, index) => (
+              {plan.premedications.map((med, index) => (
                   <Box key={`premed-${index}`} sx={{ mb: 2, pb: 2, borderBottom: index !== plan.premedications.length - 1 ? `1px solid ${alpha(theme.palette.divider, 0.5)}` : 'none' }}>
                     <Typography variant="subtitle1" sx={{ fontWeight: 600, mb: 0.5 }}>{med.name}</Typography>
                     <MuiGrid container spacing={1}>
@@ -256,14 +256,14 @@ const AnesthesiaPlanView: React.FC<AnesthesiaPlanViewProps> = ({ plan, loading, 
                 ))}
               </CardContentStyled>
             </SectionCard>
-          )}
+      )}
 
-          {/* Induction Agents */}
-          {hasInduction && (
+      {/* Induction Agents */}
+      {hasInduction && (
             <SectionCard>
               <CardHeaderStyled title="Induction Agents" />
               <CardContentStyled>
-                {plan.inductionAgents.map((agent, index) => (
+              {plan.inductionAgents.map((agent, index) => (
                   <Box key={`induction-${index}`} sx={{ mb: 2, pb: 2, borderBottom: index !== plan.inductionAgents.length - 1 ? `1px solid ${alpha(theme.palette.divider, 0.5)}` : 'none' }}>
                     <Typography variant="subtitle1" sx={{ fontWeight: 600, mb: 0.5 }}>{agent.name}</Typography>
                     <MuiGrid container spacing={1}>
@@ -302,9 +302,9 @@ const AnesthesiaPlanView: React.FC<AnesthesiaPlanViewProps> = ({ plan, loading, 
                 ))}
               </CardContentStyled>
             </SectionCard>
-          )}
+      )}
 
-          {/* Maintenance */}
+      {/* Maintenance */}
           <SectionCard>
             <CardHeaderStyled title="Maintenance" />
             <CardContentStyled>
@@ -312,7 +312,180 @@ const AnesthesiaPlanView: React.FC<AnesthesiaPlanViewProps> = ({ plan, loading, 
             </CardContentStyled>
           </SectionCard>
 
-          {/* Local Regional Anesthesia - Keep this on the left column near maintenance */}
+          {/* Emergency Drugs */}
+          {hasEmergencyDrugs && (
+            <SectionCard>
+              <CardHeaderStyled title="Emergency Drugs" />
+              <CardContentStyled>
+                {plan.emergencyDrugs.map((drug, index) => (
+                  <Box key={`emergency-${index}`} sx={{ mb: 2, pb: 2, borderBottom: index !== plan.emergencyDrugs.length - 1 ? `1px solid ${alpha(theme.palette.divider, 0.5)}` : 'none' }}>
+                    <Typography variant="subtitle1" sx={{ fontWeight: 600, mb: 0.5 }}>{drug.name}</Typography>
+                    <MuiGrid container spacing={1}>
+                      <MuiGrid item xs={6}>
+                        <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                          <Typography variant="caption" sx={{ color: 'text.secondary', mr: 1 }}>Dose:</Typography>
+                          <Typography variant="body2">{drug.dose} mg</Typography>
+                        </Box>
+                      </MuiGrid>
+                      <MuiGrid item xs={6}>
+                        <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                          <Typography variant="caption" sx={{ color: 'text.secondary', mr: 1 }}>Volume:</Typography>
+                          <Typography variant="body2" sx={{ fontWeight: 600 }}>{drug.volume || '-'} ml</Typography>
+                        </Box>
+                      </MuiGrid>
+                    </MuiGrid>
+                  </Box>
+                ))}
+              </CardContentStyled>
+            </SectionCard>
+          )}
+        </MuiGrid>
+
+        {/* Right column */}
+        <MuiGrid item xs={12} md={6} sx={{ display: 'flex', flexDirection: 'column' }}>
+      {/* IV Fluids */}
+      {hasFluids && (
+            <SectionCard>
+              <CardHeaderStyled title="IV Fluids" />
+              <CardContentStyled>
+              {plan.ivFluids.map((fluid, index) => (
+                  <Box key={`fluid-${index}`} sx={{ mb: 2, pb: 2, borderBottom: index !== plan.ivFluids.length - 1 ? `1px solid ${alpha(theme.palette.divider, 0.5)}` : 'none' }}>
+                    <Typography variant="subtitle1" sx={{ fontWeight: 600, mb: 0.5 }}>{fluid.name}</Typography>
+                    <MuiGrid container spacing={1}>
+                      <MuiGrid item xs={6}>
+                        <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                          <Typography variant="caption" sx={{ color: 'text.secondary', mr: 1 }}>Rate:</Typography>
+                          <Typography variant="body2">{fluid.rate} ml/kg/hr</Typography>
+                        </Box>
+                      </MuiGrid>
+                      <MuiGrid item xs={6}>
+                        <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                          <Typography variant="caption" sx={{ color: 'text.secondary', mr: 1 }}>ml/hr:</Typography>
+                          <Typography variant="body2">{fluid.mlPerHr}</Typography>
+                        </Box>
+                      </MuiGrid>
+                      {fluid.dropsPerSec && (
+                        <MuiGrid item xs={6}>
+                          <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                            <Typography variant="caption" sx={{ color: 'text.secondary', mr: 1 }}>Drops/sec:</Typography>
+                            <Typography variant="body2">{fluid.dropsPerSec}</Typography>
+                          </Box>
+                        </MuiGrid>
+                      )}
+                      {fluid.bolusVolume && (
+                        <MuiGrid item xs={6}>
+                          <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                            <Typography variant="caption" sx={{ color: 'text.secondary', mr: 1 }}>Bolus:</Typography>
+                            <Typography variant="body2" sx={{ fontWeight: 600 }}>{fluid.bolusVolume} ml</Typography>
+                          </Box>
+                        </MuiGrid>
+                      )}
+                    </MuiGrid>
+                  </Box>
+                ))}
+              </CardContentStyled>
+            </SectionCard>
+      )}
+
+      {/* Constant Rate Infusions */}
+      {hasCRIs && (
+            <SectionCard>
+              <CardHeaderStyled title="Constant Rate Infusions" />
+              <CardContentStyled>
+              {plan.cris.map((cri, index) => (
+                  <Box key={`cri-${index}`} sx={{ mb: 2, pb: 2, borderBottom: index !== plan.cris.length - 1 ? `1px solid ${alpha(theme.palette.divider, 0.5)}` : 'none' }}>
+                    <Typography variant="subtitle1" sx={{ fontWeight: 600, mb: 0.5 }}>{cri.name}</Typography>
+                    <MuiGrid container spacing={1}>
+                      {cri.loadingDose && (
+                        <MuiGrid item xs={12}>
+                          <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                            <Typography variant="caption" sx={{ color: 'text.secondary', mr: 1 }}>Loading Dose:</Typography>
+                            <Typography variant="body2">{cri.loadingDose}</Typography>
+                          </Box>
+                        </MuiGrid>
+                      )}
+                      <MuiGrid item xs={12}>
+                        <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                          <Typography variant="caption" sx={{ color: 'text.secondary', mr: 1 }}>Dosage Range:</Typography>
+                          <Typography variant="body2">{cri.dosageRange}</Typography>
+                        </Box>
+                      </MuiGrid>
+                      {cri.concentration && (
+                        <MuiGrid item xs={12}>
+                          <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                            <Typography variant="caption" sx={{ color: 'text.secondary', mr: 1 }}>Concentration:</Typography>
+                            <Typography variant="body2">{cri.concentration}</Typography>
+                          </Box>
+                        </MuiGrid>
+                      )}
+                    </MuiGrid>
+                  </Box>
+                ))}
+              </CardContentStyled>
+            </SectionCard>
+          )}
+
+          {/* Other Techniques - renamed to Other Medications */}
+      {hasOtherTechniques && (
+            <SectionCard>
+              <CardHeaderStyled title="Other Medications" />
+              <CardContentStyled>
+              {plan.otherTechniques.map((technique, index) => (
+                  <Box key={`technique-${index}`} sx={{ mb: 2, pb: 2, borderBottom: index !== plan.otherTechniques.length - 1 ? `1px solid ${alpha(theme.palette.divider, 0.5)}` : 'none' }}>
+                    <Typography variant="subtitle1" sx={{ fontWeight: 600, mb: 0.5 }}>{technique.name}</Typography>
+                    <MuiGrid container spacing={1}>
+                      {technique.drugs && technique.drugs.length > 0 && (
+                        <MuiGrid item xs={12}>
+                          <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                            <Typography variant="caption" sx={{ color: 'text.secondary', mr: 1 }}>Drugs:</Typography>
+                            <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
+                              {technique.drugs.map((drug, idx) => (
+                                <Chip key={idx} size="small" label={drug} variant="outlined" />
+                              ))}
+                            </Box>
+                          </Box>
+                        </MuiGrid>
+                      )}
+                      {technique.dosageRange && (
+                        <MuiGrid item xs={12}>
+                          <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                            <Typography variant="caption" sx={{ color: 'text.secondary', mr: 1 }}>Dosage:</Typography>
+                            <Typography variant="body2">{technique.dosageRange} mg/kg</Typography>
+                          </Box>
+                        </MuiGrid>
+                      )}
+                      {technique.anticipatedDose && (
+                        <MuiGrid item xs={6}>
+                          <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                            <Typography variant="caption" sx={{ color: 'text.secondary', mr: 1 }}>Dose:</Typography>
+                            <Typography variant="body2">{technique.anticipatedDose} mg</Typography>
+                          </Box>
+                        </MuiGrid>
+                      )}
+                      {technique.concentration && (
+        <MuiGrid item xs={6}>
+                          <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                            <Typography variant="caption" sx={{ color: 'text.secondary', mr: 1 }}>Conc:</Typography>
+                            <Typography variant="body2">{technique.concentration} mg/ml</Typography>
+                          </Box>
+        </MuiGrid>
+                      )}
+                      {technique.volume && (
+        <MuiGrid item xs={6}>
+                          <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                            <Typography variant="caption" sx={{ color: 'text.secondary', mr: 1 }}>Volume:</Typography>
+                            <Typography variant="body2">{technique.volume} ml</Typography>
+                          </Box>
+        </MuiGrid>
+                      )}
+      </MuiGrid>
+                  </Box>
+                ))}
+              </CardContentStyled>
+            </SectionCard>
+          )}
+
+          {/* Local Regional Anesthesia - Added to match the edit form */}
           {hasLocalRegional && (
             <SectionCard>
               <CardHeaderStyled title="Local Regional Anesthesia" />
@@ -330,7 +503,7 @@ const AnesthesiaPlanView: React.FC<AnesthesiaPlanViewProps> = ({ plan, loading, 
                         </MuiGrid>
                       )}
                       {item.drugs && item.drugs.length > 0 && (
-                        <MuiGrid item xs={12}>
+        <MuiGrid item xs={12}>
                           <Box sx={{ display: 'flex', alignItems: 'center' }}>
                             <Typography variant="caption" sx={{ color: 'text.secondary', mr: 1 }}>Drugs:</Typography>
                             <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
@@ -395,434 +568,243 @@ const AnesthesiaPlanView: React.FC<AnesthesiaPlanViewProps> = ({ plan, loading, 
               </CardContentStyled>
             </SectionCard>
           )}
-
-          {/* Monitoring Plan - Moved up from the bottom */}
-          <SectionCard>
-            <CardHeaderStyled title="Monitoring Plan" />
-            <CardContentStyled>
-              <MuiGrid container spacing={3}>
-                <MuiGrid item xs={12} sm={6}>
-                  <SectionTitle>Monitoring Equipment</SectionTitle>
-                  <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
-                    <Chip 
-                      icon={plan.monitoringPlan.spo2 ? <CheckIcon fontSize="small" /> : undefined}
-                      label="SPO2" 
-                      variant={plan.monitoringPlan.spo2 ? "filled" : "outlined"}
-                      color={plan.monitoringPlan.spo2 ? "primary" : "default"}
-                      size="small"
-                    />
-                    <Chip 
-                      icon={plan.monitoringPlan.temp ? <CheckIcon fontSize="small" /> : undefined}
-                      label="TEMP" 
-                      variant={plan.monitoringPlan.temp ? "filled" : "outlined"}
-                      color={plan.monitoringPlan.temp ? "primary" : "default"}
-                      size="small"
-                    />
-                    <Chip 
-                      icon={plan.monitoringPlan.ecg ? <CheckIcon fontSize="small" /> : undefined}
-                      label="ECG" 
-                      variant={plan.monitoringPlan.ecg ? "filled" : "outlined"}
-                      color={plan.monitoringPlan.ecg ? "primary" : "default"}
-                      size="small"
-                    />
-                    <Chip 
-                      icon={plan.monitoringPlan.etco2 ? <CheckIcon fontSize="small" /> : undefined}
-                      label="ETCO2" 
-                      variant={plan.monitoringPlan.etco2 ? "filled" : "outlined"}
-                      color={plan.monitoringPlan.etco2 ? "primary" : "default"}
-                      size="small"
-                    />
-                    <Chip 
-                      icon={plan.monitoringPlan.ibp ? <CheckIcon fontSize="small" /> : undefined}
-                      label="IBP" 
-                      variant={plan.monitoringPlan.ibp ? "filled" : "outlined"}
-                      color={plan.monitoringPlan.ibp ? "primary" : "default"}
-                      size="small"
-                    />
-                    <Chip 
-                      icon={plan.monitoringPlan.nibp ? <CheckIcon fontSize="small" /> : undefined}
-                      label="NIBP-Oscillometric" 
-                      variant={plan.monitoringPlan.nibp ? "filled" : "outlined"}
-                      color={plan.monitoringPlan.nibp ? "primary" : "default"}
-                      size="small"
-                    />
-                    <Chip 
-                      icon={plan.monitoringPlan.doppler ? <CheckIcon fontSize="small" /> : undefined}
-                      label="Doppler" 
-                      variant={plan.monitoringPlan.doppler ? "filled" : "outlined"}
-                      color={plan.monitoringPlan.doppler ? "primary" : "default"}
-                      size="small"
-                    />
-                    {/* Add NMB Monitoring if in plan */}
-                    {plan.nmbMonitoring && (
-                      <Chip 
-                        icon={<CheckIcon fontSize="small" />}
-                        label="NMB Monitoring" 
-                        variant="filled"
-                        color="primary"
-                        size="small"
-                      />
-                    )}
-                  </Box>
-                </MuiGrid>
-                  
-                <MuiGrid item xs={12} sm={6}>
-                  <SectionTitle>IV Catheters</SectionTitle>
-                  <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
-                    <Chip 
-                      icon={plan.monitoringPlan.ivcs.longTerm ? <CheckIcon fontSize="small" /> : undefined}
-                      label="Long Term IVC" 
-                      variant={plan.monitoringPlan.ivcs.longTerm ? "filled" : "outlined"}
-                      color={plan.monitoringPlan.ivcs.longTerm ? "primary" : "default"}
-                      size="small"
-                    />
-                    <Chip 
-                      icon={plan.monitoringPlan.ivcs.shortTerm ? <CheckIcon fontSize="small" /> : undefined}
-                      label="Short Term IVC" 
-                      variant={plan.monitoringPlan.ivcs.shortTerm ? "filled" : "outlined"}
-                      color={plan.monitoringPlan.ivcs.shortTerm ? "primary" : "default"}
-                      size="small"
-                    />
-                    <Chip 
-                      icon={plan.monitoringPlan.ivcs.secondIV ? <CheckIcon fontSize="small" /> : undefined}
-                      label="2nd IVC" 
-                      variant={plan.monitoringPlan.ivcs.secondIV ? "filled" : "outlined"}
-                      color={plan.monitoringPlan.ivcs.secondIV ? "primary" : "default"}
-                      size="small"
-                    />
-                    <Chip 
-                      icon={plan.monitoringPlan.centralLine ? <CheckIcon fontSize="small" /> : undefined}
-                      label="Central Line" 
-                      variant={plan.monitoringPlan.centralLine ? "filled" : "outlined"}
-                      color={plan.monitoringPlan.centralLine ? "primary" : "default"}
-                      size="small"
-                    />
-                    <Chip 
-                      icon={plan.monitoringPlan.arterialLine ? <CheckIcon fontSize="small" /> : undefined}
-                      label="Arterial Line" 
-                      variant={plan.monitoringPlan.arterialLine ? "filled" : "outlined"}
-                      color={plan.monitoringPlan.arterialLine ? "primary" : "default"}
-                      size="small"
-                    />
-                    {/* IV Catheter Already In Place */}
-                    {plan.ivCatheterInPlace && (
-                      <Chip 
-                        icon={<CheckIcon fontSize="small" />}
-                        label="IV Catheter Already In Place" 
-                        variant="filled"
-                        color="success"
-                        size="small"
-                      />
-                    )}
-                  </Box>
-                </MuiGrid>
-
-                {/* Blood Volume and Ventilator information */}
-                <MuiGrid item xs={12}>
-                  <Box sx={{ mt: 2 }}>
-                    <SectionTitle>Additional Information</SectionTitle>
-                    <MuiGrid container spacing={2}>
-                      {plan.totalBloodVolume && (
-                        <MuiGrid item xs={12} sm={6}>
-                          <DataRow>
-                            <DataLabel>Total Blood Volume:</DataLabel>
-                            <DataValue>{plan.totalBloodVolume}</DataValue>
-                          </DataRow>
-                        </MuiGrid>
-                      )}
-                      
-                      {plan.ventilator && (
-                        <MuiGrid item xs={12} sm={6}>
-                          <DataRow>
-                            <DataLabel>Ventilator:</DataLabel>
-                            <DataValue>YES</DataValue>
-                          </DataRow>
-                          {plan.tidalVolume && (
-                            <DataRow>
-                              <DataLabel>Tidal Volume:</DataLabel>
-                              <DataValue>{plan.tidalVolume} ml</DataValue>
-                            </DataRow>
-                          )}
-                          {plan.respRate && (
-                            <DataRow>
-                              <DataLabel>Resp. Rate:</DataLabel>
-                              <DataValue>{plan.respRate} bpm</DataValue>
-                            </DataRow>
-                          )}
-                          {plan.peep && (
-                            <DataRow>
-                              <DataLabel>PEEP:</DataLabel>
-                              <DataValue>{plan.peep} cmH₂O</DataValue>
-                            </DataRow>
-                          )}
-                        </MuiGrid>
-                      )}
-                    </MuiGrid>
-                  </Box>
-                </MuiGrid>
-              </MuiGrid>
-            </CardContentStyled>
-          </SectionCard>
-
-          {/* Emergency Drugs */}
-          {hasEmergencyDrugs && (
-            <SectionCard>
-              <CardHeaderStyled title="Emergency Drugs" />
-              <CardContentStyled>
-                {plan.emergencyDrugs.map((drug, index) => (
-                  <Box key={`emergency-${index}`} sx={{ mb: 2, pb: 2, borderBottom: index !== plan.emergencyDrugs.length - 1 ? `1px solid ${alpha(theme.palette.divider, 0.5)}` : 'none' }}>
-                    <Typography variant="subtitle1" sx={{ fontWeight: 600, mb: 0.5 }}>{drug.name}</Typography>
-                    <MuiGrid container spacing={1}>
-                      <MuiGrid item xs={6}>
-                        <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                          <Typography variant="caption" sx={{ color: 'text.secondary', mr: 1 }}>Dose:</Typography>
-                          <Typography variant="body2">{drug.dose} mg</Typography>
-                        </Box>
-                      </MuiGrid>
-                      <MuiGrid item xs={6}>
-                        <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                          <Typography variant="caption" sx={{ color: 'text.secondary', mr: 1 }}>Volume:</Typography>
-                          <Typography variant="body2" sx={{ fontWeight: 600 }}>{drug.volume || '-'} ml</Typography>
-                        </Box>
-                      </MuiGrid>
-                    </MuiGrid>
-                  </Box>
-                ))}
-              </CardContentStyled>
-            </SectionCard>
-          )}
-        </MuiGrid>
-
-        {/* Right column */}
-        <MuiGrid item xs={12} md={6} sx={{ display: 'flex', flexDirection: 'column' }}>
-          {/* IV Fluids */}
-          {hasFluids && (
-            <SectionCard>
-              <CardHeaderStyled title="IV Fluids" />
-              <CardContentStyled>
-                {plan.ivFluids.map((fluid, index) => (
-                  <Box key={`fluid-${index}`} sx={{ mb: 2, pb: 2, borderBottom: index !== plan.ivFluids.length - 1 ? `1px solid ${alpha(theme.palette.divider, 0.5)}` : 'none' }}>
-                    <Typography variant="subtitle1" sx={{ fontWeight: 600, mb: 0.5 }}>{fluid.name}</Typography>
-                    <MuiGrid container spacing={1}>
-                      <MuiGrid item xs={6}>
-                        <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                          <Typography variant="caption" sx={{ color: 'text.secondary', mr: 1 }}>Rate:</Typography>
-                          <Typography variant="body2">{fluid.rate} ml/kg/hr</Typography>
-                        </Box>
-                      </MuiGrid>
-                      <MuiGrid item xs={6}>
-                        <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                          <Typography variant="caption" sx={{ color: 'text.secondary', mr: 1 }}>ml/hr:</Typography>
-                          <Typography variant="body2">{fluid.mlPerHr}</Typography>
-                        </Box>
-                      </MuiGrid>
-                      {fluid.dropsPerSec && (
-                        <MuiGrid item xs={6}>
-                          <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                            <Typography variant="caption" sx={{ color: 'text.secondary', mr: 1 }}>Drops/sec:</Typography>
-                            <Typography variant="body2">{fluid.dropsPerSec}</Typography>
-                          </Box>
-                        </MuiGrid>
-                      )}
-                      {fluid.bolusVolume && (
-                        <MuiGrid item xs={6}>
-                          <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                            <Typography variant="caption" sx={{ color: 'text.secondary', mr: 1 }}>Bolus:</Typography>
-                            <Typography variant="body2" sx={{ fontWeight: 600 }}>{fluid.bolusVolume} ml</Typography>
-                          </Box>
-                        </MuiGrid>
-                      )}
-                    </MuiGrid>
-                  </Box>
-                ))}
-              </CardContentStyled>
-            </SectionCard>
-          )}
-
-          {/* Constant Rate Infusions */}
-          {hasCRIs && (
-            <SectionCard>
-              <CardHeaderStyled title="Constant Rate Infusions" />
-              <CardContentStyled>
-                {plan.cris.map((cri, index) => (
-                  <Box key={`cri-${index}`} sx={{ mb: 2, pb: 2, borderBottom: index !== plan.cris.length - 1 ? `1px solid ${alpha(theme.palette.divider, 0.5)}` : 'none' }}>
-                    <Typography variant="subtitle1" sx={{ fontWeight: 600, mb: 0.5 }}>{cri.name}</Typography>
-                    <MuiGrid container spacing={1}>
-                      {cri.loadingDose && (
-                        <MuiGrid item xs={12}>
-                          <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                            <Typography variant="caption" sx={{ color: 'text.secondary', mr: 1 }}>Loading Dose:</Typography>
-                            <Typography variant="body2">{cri.loadingDose}</Typography>
-                          </Box>
-                        </MuiGrid>
-                      )}
-                      <MuiGrid item xs={12}>
-                        <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                          <Typography variant="caption" sx={{ color: 'text.secondary', mr: 1 }}>Dosage Range:</Typography>
-                          <Typography variant="body2">{cri.dosageRange}</Typography>
-                        </Box>
-                      </MuiGrid>
-                      {cri.concentration && (
-                        <MuiGrid item xs={12}>
-                          <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                            <Typography variant="caption" sx={{ color: 'text.secondary', mr: 1 }}>Concentration:</Typography>
-                            <Typography variant="body2">{cri.concentration}</Typography>
-                          </Box>
-                        </MuiGrid>
-                      )}
-                    </MuiGrid>
-                  </Box>
-                ))}
-              </CardContentStyled>
-            </SectionCard>
-          )}
-
-          {/* Other Techniques - renamed to Other Medications */}
-          {hasOtherTechniques && (
-            <SectionCard>
-              <CardHeaderStyled title="Other Medications" />
-              <CardContentStyled>
-                {plan.otherTechniques.map((technique, index) => (
-                  <Box key={`technique-${index}`} sx={{ mb: 2, pb: 2, borderBottom: index !== plan.otherTechniques.length - 1 ? `1px solid ${alpha(theme.palette.divider, 0.5)}` : 'none' }}>
-                    <Typography variant="subtitle1" sx={{ fontWeight: 600, mb: 0.5 }}>{technique.name}</Typography>
-                    <MuiGrid container spacing={1}>
-                      {technique.drugs && technique.drugs.length > 0 && (
-                        <MuiGrid item xs={12}>
-                          <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                            <Typography variant="caption" sx={{ color: 'text.secondary', mr: 1 }}>Drugs:</Typography>
-                            <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
-                              {technique.drugs.map((drug, idx) => (
-                                <Chip key={idx} size="small" label={drug} variant="outlined" />
-                              ))}
-                            </Box>
-                          </Box>
-                        </MuiGrid>
-                      )}
-                      {technique.dosageRange && (
-                        <MuiGrid item xs={12}>
-                          <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                            <Typography variant="caption" sx={{ color: 'text.secondary', mr: 1 }}>Dosage:</Typography>
-                            <Typography variant="body2">{technique.dosageRange} mg/kg</Typography>
-                          </Box>
-                        </MuiGrid>
-                      )}
-                      {technique.anticipatedDose && (
-                        <MuiGrid item xs={6}>
-                          <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                            <Typography variant="caption" sx={{ color: 'text.secondary', mr: 1 }}>Dose:</Typography>
-                            <Typography variant="body2">{technique.anticipatedDose} mg</Typography>
-                          </Box>
-                        </MuiGrid>
-                      )}
-                      {technique.concentration && (
-                        <MuiGrid item xs={6}>
-                          <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                            <Typography variant="caption" sx={{ color: 'text.secondary', mr: 1 }}>Conc:</Typography>
-                            <Typography variant="body2">{technique.concentration} mg/ml</Typography>
-                          </Box>
-                        </MuiGrid>
-                      )}
-                      {technique.volume && (
-                        <MuiGrid item xs={6}>
-                          <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                            <Typography variant="caption" sx={{ color: 'text.secondary', mr: 1 }}>Volume:</Typography>
-                            <Typography variant="body2">{technique.volume} ml</Typography>
-                          </Box>
-                        </MuiGrid>
-                      )}
-                    </MuiGrid>
-                  </Box>
-                ))}
-              </CardContentStyled>
-            </SectionCard>
-          )}
-
-          {/* Emergency Drugs and Reversals - More compact grid layout */}
-          <SectionCard>
-            <CardHeaderStyled title="Emergency Drugs and Reversals" />
-            <CardContentStyled>
-              <Box sx={{ 
-                display: 'grid', 
-                gridTemplateColumns: {
-                  xs: 'repeat(1, 1fr)',
-                  sm: 'repeat(2, 1fr)',
-                  md: 'repeat(3, 1fr)',
-                  lg: 'repeat(4, 1fr)'
-                },
-                gap: 1.5
-              }}>
-                {EMERGENCY_DRUGS.map((drugDef) => {
-                  // For custom entered drugs from the plan
-                  const savedDrug = plan.emergencyDrugs?.find(d => d.name === drugDef.name);
-                  // For Atipamezole, use the saved drug data or plan-specific fields
-                  const isAtipamezole = drugDef.name === 'Atipamezole';
-                  
-                  // Use saved data if available, otherwise calculate based on weight
-                  const drug = savedDrug || (isAtipamezole && plan.atipamezoleDose 
-                    ? { 
-                        name: 'Atipamezole', 
-                        dosage: '',
-                        dose: plan.atipamezoleDose,
-                        volume: plan.atipamezoleVolume || '-',
-                        concentration: '5'
-                      } 
-                    : calculateEmergencyDrug(drugDef, patientWeight || ''));
-                  
-                  return (
-                    <Paper
-                      key={drugDef.name}
-                      elevation={1}
-                      sx={{
-                        p: 1.5,
-                        borderRadius: 1,
-                        border: '1px solid',
-                        borderColor: 'divider',
-                        height: '100%'
-                      }}
-                    >
-                      <Typography variant="subtitle2" sx={{ fontWeight: 'bold', mb: 0.5 }}>{drugDef.name}</Typography>
-                      {isAtipamezole ? (
-                        <>
-                          <Typography variant="caption" sx={{ display: 'block' }}>10x dex dose</Typography>
-                          <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 0.5 }}>
-                            <Typography variant="body2" sx={{ fontSize: '0.8rem' }}>Dose: {drug.dose || '-'} mg</Typography>
-                            <Typography variant="body2" sx={{ fontSize: '0.8rem' }}>Vol: {drug.volume || '-'} mL</Typography>
-                          </Box>
-                          <Typography variant="caption" sx={{ display: 'block', mt: 0.5 }}>{drug.concentration} mg/mL</Typography>
-                        </>
-                      ) : (
-                        <>
-                          <Typography variant="caption" sx={{ display: 'block' }}>{drugDef.dosage} mg/kg</Typography>
-                          <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 0.5 }}>
-                            <Typography variant="body2" sx={{ fontSize: '0.8rem' }}>Dose: {drug.dose || '-'} mg</Typography>
-                            <Typography variant="body2" sx={{ fontSize: '0.8rem' }}>Vol: {drug.volume || '-'} mL</Typography>
-                          </Box>
-                          <Typography variant="caption" sx={{ display: 'block', mt: 0.5 }}>{drug.concentration} mg/mL</Typography>
-                        </>
-                      )}
-                    </Paper>
-                  );
-                })}
-              </Box>
-            </CardContentStyled>
-          </SectionCard>
-
-          {/* Post-Operative Plan (added to match form) */}
-          <SectionCard>
-            <CardHeaderStyled title="Post-Operative Plan" />
-            <CardContentStyled>
-              <Typography variant="body1" sx={{ whiteSpace: 'pre-line', mb: 2 }}>
-                {plan.postOpPlan || 'No post-operative plan specified.'}
-              </Typography>
-              
-              <SectionTitle>Recovery Area</SectionTitle>
-              <Typography variant="body1">
-                {plan.recoveryArea}{plan.recoveryAreaOther ? `: ${plan.recoveryAreaOther}` : ''}
-              </Typography>
-            </CardContentStyled>
-          </SectionCard>
         </MuiGrid>
       </MuiGrid>
+
+      {/* Monitoring Plan */}
+      <SectionCard>
+        <CardHeaderStyled title="Monitoring Plan" />
+        <CardContentStyled>
+          <MuiGrid container spacing={3}>
+            <MuiGrid item xs={12} sm={6}>
+              <SectionTitle>Monitoring Equipment</SectionTitle>
+              <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
+                <Chip 
+                  icon={plan.monitoringPlan.spo2 ? <CheckIcon fontSize="small" /> : undefined}
+                  label="SPO₂" 
+                  variant={plan.monitoringPlan.spo2 ? "filled" : "outlined"}
+                  color={plan.monitoringPlan.spo2 ? "primary" : "default"}
+                  size="small"
+                />
+                <Chip 
+                  icon={plan.monitoringPlan.temp ? <CheckIcon fontSize="small" /> : undefined}
+                  label="TEMP" 
+                  variant={plan.monitoringPlan.temp ? "filled" : "outlined"}
+                  color={plan.monitoringPlan.temp ? "primary" : "default"}
+                  size="small"
+                />
+                <Chip 
+                  icon={plan.monitoringPlan.ecg ? <CheckIcon fontSize="small" /> : undefined}
+                  label="ECG" 
+                  variant={plan.monitoringPlan.ecg ? "filled" : "outlined"}
+                  color={plan.monitoringPlan.ecg ? "primary" : "default"}
+                  size="small"
+                />
+                <Chip 
+                  icon={plan.monitoringPlan.etco2 ? <CheckIcon fontSize="small" /> : undefined}
+                  label="ETCO₂" 
+                  variant={plan.monitoringPlan.etco2 ? "filled" : "outlined"}
+                  color={plan.monitoringPlan.etco2 ? "primary" : "default"}
+                  size="small"
+                />
+                <Chip 
+                  icon={plan.monitoringPlan.ibp ? <CheckIcon fontSize="small" /> : undefined}
+                  label="IBP" 
+                  variant={plan.monitoringPlan.ibp ? "filled" : "outlined"}
+                  color={plan.monitoringPlan.ibp ? "primary" : "default"}
+                  size="small"
+                />
+                <Chip 
+                  icon={plan.monitoringPlan.nibp ? <CheckIcon fontSize="small" /> : undefined}
+                  label="NIBP-Oscillometric" 
+                  variant={plan.monitoringPlan.nibp ? "filled" : "outlined"}
+                  color={plan.monitoringPlan.nibp ? "primary" : "default"}
+                  size="small"
+                />
+                <Chip 
+                  icon={plan.monitoringPlan.doppler ? <CheckIcon fontSize="small" /> : undefined}
+                  label="Doppler" 
+                  variant={plan.monitoringPlan.doppler ? "filled" : "outlined"}
+                  color={plan.monitoringPlan.doppler ? "primary" : "default"}
+                  size="small"
+                />
+              </Box>
+            </MuiGrid>
+              
+            <MuiGrid item xs={12} sm={6}>
+              <SectionTitle>IV Catheters</SectionTitle>
+              <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
+                <Chip 
+                  icon={plan.monitoringPlan.ivcs.longTerm ? <CheckIcon fontSize="small" /> : undefined}
+                  label="Long Term IVC" 
+                  variant={plan.monitoringPlan.ivcs.longTerm ? "filled" : "outlined"}
+                  color={plan.monitoringPlan.ivcs.longTerm ? "primary" : "default"}
+                  size="small"
+                />
+                <Chip 
+                  icon={plan.monitoringPlan.ivcs.shortTerm ? <CheckIcon fontSize="small" /> : undefined}
+                  label="Short Term IVC" 
+                  variant={plan.monitoringPlan.ivcs.shortTerm ? "filled" : "outlined"}
+                  color={plan.monitoringPlan.ivcs.shortTerm ? "primary" : "default"}
+                  size="small"
+                />
+                <Chip 
+                  icon={plan.monitoringPlan.ivcs.secondIV ? <CheckIcon fontSize="small" /> : undefined}
+                  label="2nd IVC" 
+                  variant={plan.monitoringPlan.ivcs.secondIV ? "filled" : "outlined"}
+                  color={plan.monitoringPlan.ivcs.secondIV ? "primary" : "default"}
+                  size="small"
+                />
+                <Chip 
+                  icon={plan.monitoringPlan.centralLine ? <CheckIcon fontSize="small" /> : undefined}
+                  label="Central Line" 
+                  variant={plan.monitoringPlan.centralLine ? "filled" : "outlined"}
+                  color={plan.monitoringPlan.centralLine ? "primary" : "default"}
+                  size="small"
+                />
+                <Chip 
+                  icon={plan.monitoringPlan.arterialLine ? <CheckIcon fontSize="small" /> : undefined}
+                  label="Arterial Line" 
+                  variant={plan.monitoringPlan.arterialLine ? "filled" : "outlined"}
+                  color={plan.monitoringPlan.arterialLine ? "primary" : "default"}
+                  size="small"
+                />
+              </Box>
+            </MuiGrid>
+          </MuiGrid>
+        </CardContentStyled>
+      </SectionCard>
+      
+      {/* Additional Info */}
+      <SectionCard>
+        <CardHeaderStyled title="Additional Information" />
+        <CardContentStyled>
+          <MuiGrid container spacing={2}>
+            <MuiGrid item xs={12} sm={6}>
+              <Box sx={{ mb: 2 }}>
+                <SectionTitle>Total Blood Volume</SectionTitle>
+                <Typography variant="body1">{plan.totalBloodVolume || '-'}</Typography>
+              </Box>
+              
+              <Box>
+                <SectionTitle>Recovery Area</SectionTitle>
+                <Typography variant="body1">{plan.recoveryArea} {plan.recoveryAreaOther}</Typography>
+              </Box>
+              
+              {plan.ivCatheterInPlace !== undefined && (
+                <Box sx={{ mt: 2 }}>
+                  <SectionTitle>IV Catheter Status</SectionTitle>
+                  <Typography variant="body1">
+                    {plan.ivCatheterInPlace ? 'IV Catheter already in place' : 'IV Catheter needed'}
+                  </Typography>
+                </Box>
+              )}
+            </MuiGrid>
+            
+            <MuiGrid item xs={12} sm={6}>
+              <Box>
+                <SectionTitle>Ventilator {plan.ventilator ? '(YES)' : '(NO)'}</SectionTitle>
+                {plan.ventilator && (
+                  <Box>
+                    <DataRow>
+                      <DataLabel>Tidal Volume:</DataLabel>
+                      <DataValue>{plan.tidalVolume || '-'}</DataValue>
+                    </DataRow>
+                    <DataRow>
+                      <DataLabel>Resp. Rate:</DataLabel>
+                      <DataValue>{plan.respRate || '-'}</DataValue>
+                    </DataRow>
+                    <DataRow>
+                      <DataLabel>PEEP:</DataLabel>
+                      <DataValue>{plan.peep || '-'}</DataValue>
+                    </DataRow>
+                  </Box>
+                )}
+              </Box>
+            </MuiGrid>
+          </MuiGrid>
+        </CardContentStyled>
+      </SectionCard>
+      
+      {/* Emergency Drugs and Reversals - More compact grid layout - Moved to bottom */}
+      <SectionCard>
+        <CardHeaderStyled title="Emergency Drugs and Reversals" />
+        <CardContentStyled>
+          <Box sx={{ 
+            display: 'grid', 
+            gridTemplateColumns: {
+              xs: 'repeat(1, 1fr)',
+              sm: 'repeat(2, 1fr)',
+              md: 'repeat(3, 1fr)',
+              lg: 'repeat(4, 1fr)'
+            },
+            gap: 1.5
+          }}>
+            {EMERGENCY_DRUGS.map((drugDef) => {
+              // For custom entered drugs from the plan
+              const savedDrug = plan.emergencyDrugs?.find(d => d.name === drugDef.name);
+              // For Atipamezole, use the saved drug data or plan-specific fields
+              const isAtipamezole = drugDef.name === 'Atipamezole';
+              
+              // Use saved data if available, otherwise calculate based on weight
+              const drug = savedDrug || (isAtipamezole && plan.atipamezoleDose 
+                ? { 
+                    name: 'Atipamezole', 
+                    dosage: '',
+                    dose: plan.atipamezoleDose,
+                    volume: plan.atipamezoleVolume || '-',
+                    concentration: '5'
+                  } 
+                : calculateEmergencyDrug(drugDef, patientWeight || ''));
+              
+              return (
+                <Paper
+                  key={drugDef.name}
+                  elevation={1}
+                  sx={{
+                    p: 1.5,
+                    borderRadius: 1,
+                    border: '1px solid',
+                    borderColor: 'divider',
+                    height: '100%'
+                  }}
+                >
+                  <Typography variant="subtitle2" sx={{ fontWeight: 'bold', mb: 0.5 }}>{drugDef.name}</Typography>
+                  {isAtipamezole ? (
+                    <>
+                      <Typography variant="caption" sx={{ display: 'block' }}>10x dex dose</Typography>
+                      <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 0.5 }}>
+                        <Typography variant="body2" sx={{ fontSize: '0.8rem' }}>Dose: {drug.dose || '-'} mg</Typography>
+                        <Typography variant="body2" sx={{ fontSize: '0.8rem' }}>Vol: {drug.volume || '-'} mL</Typography>
+                      </Box>
+                      <Typography variant="caption" sx={{ display: 'block', mt: 0.5 }}>{drug.concentration} mg/mL</Typography>
+                    </>
+                  ) : (
+                    <>
+                      <Typography variant="caption" sx={{ display: 'block' }}>{drugDef.dosage} mg/kg</Typography>
+                      <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 0.5 }}>
+                        <Typography variant="body2" sx={{ fontSize: '0.8rem' }}>Dose: {drug.dose || '-'} mg</Typography>
+                        <Typography variant="body2" sx={{ fontSize: '0.8rem' }}>Vol: {drug.volume || '-'} mL</Typography>
+                      </Box>
+                      <Typography variant="caption" sx={{ display: 'block', mt: 0.5 }}>{drug.concentration} mg/mL</Typography>
+                    </>
+                  )}
+                </Paper>
+              );
+            })}
+          </Box>
+        </CardContentStyled>
+      </SectionCard>
+      
+      {/* Post-Op Plan */}
+      {plan.postOpPlan && (
+        <SectionCard>
+          <CardHeaderStyled title="Post-Op Plan" />
+          <CardContentStyled>
+            <Typography variant="body1">{plan.postOpPlan}</Typography>
+          </CardContentStyled>
+        </SectionCard>
+      )}
       
       {/* Plan Approval */}
       {plan.planApproval && (

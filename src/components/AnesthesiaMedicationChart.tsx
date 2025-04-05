@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState, useRef, useCallback, forwardRef, useImperativeHandle } from 'react';
 import { 
   Typography, 
   Box, 
@@ -18,12 +18,26 @@ import {
   IconButton,
   Tooltip,
   Alert,
-  Snackbar
+  Snackbar,
+  Table,
+  TableHead,
+  TableBody,
+  TableCell,
+  TableRow,
+  Menu,
+  ClickAwayListener,
+  CardHeader,
+  Divider,
+  Autocomplete
 } from '@mui/material';
 import EditIcon from '@mui/icons-material/Edit';
 import StopIcon from '@mui/icons-material/Stop';
+import MoreVertIcon from '@mui/icons-material/MoreVert';
 import { AnesthesiaCRI, AnesthesiaBolus } from '../types';
 import { addAnesthesiaBolus, addAnesthesiaCRI, updateCRIRate, stopCRI, getAnesthesiaCRIs, getAnesthesiaBoluses } from '../services/patients';
+import { format } from 'date-fns';
+import { alpha, darken } from '@mui/material/styles';
+import html2canvas from 'html2canvas';
 
 // Define available medications
 const availableCRIs = [
@@ -37,12 +51,12 @@ const availableCRIs = [
 ];
 
 const availableBoluses = [
-  { name: 'Propofol', defaultUnit: 'mg/kg', color: '#4fc3f7' },
-  { name: 'Ketamine', defaultUnit: 'mg/kg', color: '#64b5f6' },
-  { name: 'Hydromorphone', defaultUnit: 'mg/kg', color: '#ffb74d' },
-  { name: 'Midazolam', defaultUnit: 'mg/kg', color: '#81c784' },
-  { name: 'Atropine', defaultUnit: 'mg/kg', color: '#f48fb1' },
-  { name: 'Glycopyrrolate', defaultUnit: 'mg/kg', color: '#ce93d8' },
+  { name: 'Propofol', defaultUnit: 'mg', color: '#4fc3f7' },
+  { name: 'Ketamine', defaultUnit: 'mg', color: '#64b5f6' },
+  { name: 'Hydromorphone', defaultUnit: 'mg', color: '#ffb74d' },
+  { name: 'Midazolam', defaultUnit: 'mg', color: '#81c784' },
+  { name: 'Atropine', defaultUnit: 'mg', color: '#f48fb1' },
+  { name: 'Glycopyrrolate', defaultUnit: 'mg', color: '#ce93d8' },
 ];
 
 interface AnesthesiaMedicationChartProps {
@@ -55,16 +69,63 @@ interface AnesthesiaMedicationChartProps {
   };
   onMedicationAdded?: () => void;
   currentUser: string;
+  anesthesiaData?: any;
 }
 
-const AnesthesiaMedicationChart: React.FC<AnesthesiaMedicationChartProps> = ({
+// Define the type for the forwarded ref
+export interface AnesthesiaMedicationChartRef {
+  getChartImage: () => Promise<string | undefined>;
+  getContainer: () => HTMLDivElement | null;
+}
+
+const AnesthesiaMedicationChart = forwardRef<AnesthesiaMedicationChartRef, AnesthesiaMedicationChartProps>(({
   patientId,
   vitalSignsStartTime,
   vitalSignsEndTime,
   visibleTimeRange,
   onMedicationAdded,
-  currentUser
-}) => {
+  currentUser,
+  anesthesiaData,
+}, ref) => {
+  const containerRef = useRef<HTMLDivElement>(null); // Ref for the main container used for html2canvas
+
+  // Expose the container ref and image getter
+  useImperativeHandle(ref, () => ({
+    getContainer: () => containerRef.current,
+    getChartImage: (): Promise<string | undefined> => {
+      return new Promise((resolve) => {
+        // Use html2canvas on the containerRef
+        const elementToCapture = containerRef.current;
+        if (!elementToCapture) {
+          console.error('Medication chart container not found for capture.');
+          resolve(undefined);
+          return;
+        }
+
+        console.log('Capturing medication chart container:', elementToCapture);
+        // Delay slightly before capture
+        setTimeout(() => {
+          html2canvas(elementToCapture, {
+            logging: true,
+            useCORS: true,
+            scale: 1, // Start with scale 1
+            backgroundColor: '#ffffff', // Ensure white background
+            width: elementToCapture.offsetWidth,
+            height: elementToCapture.offsetHeight,
+            scrollX: 0,
+            scrollY: 0,
+          }).then(canvas => {
+            console.log('Medication chart canvas captured successfully.');
+            resolve(canvas.toDataURL('image/png', 1.0));
+          }).catch(error => {
+            console.error('Error capturing medication chart with html2canvas:', error);
+            resolve(undefined);
+          });
+        }, 150); // 150ms delay
+      });
+    }
+  }));
+
   // State for CRIs and boluses
   const [activeCRIs, setActiveCRIs] = useState<AnesthesiaCRI[]>([]);
   const [boluses, setBoluses] = useState<AnesthesiaBolus[]>([]);
@@ -76,7 +137,7 @@ const AnesthesiaMedicationChart: React.FC<AnesthesiaMedicationChartProps> = ({
   
   // Form state
   const [selectedCRI, setSelectedCRI] = useState('');
-  const [selectedBolus, setSelectedBolus] = useState('');
+  const [selectedBolus, setSelectedBolus] = useState<string | { name: string; defaultUnit: string; color: string; } | null>(null);
   const [criRate, setCRIRate] = useState('');
   const [bolusAmount, setBolusAmount] = useState('');
   const [criUnit, setCRIUnit] = useState('');
@@ -91,346 +152,240 @@ const AnesthesiaMedicationChart: React.FC<AnesthesiaMedicationChartProps> = ({
     severity: 'success' as 'success' | 'error'
   });
   
-  // Get effective time range for charts
-  const effectiveStartTime = vitalSignsStartTime || new Date(Date.now() - 3600000); // Default to 1 hour ago
-  const effectiveEndTime = vitalSignsEndTime || new Date();
+  // For the context menu (replacing the existing action menu)
+  const [contextMenuAnchor, setContextMenuAnchor] = useState<null | { top: number; left: number }>(null);
+  const [contextMenuCRI, setContextMenuCRI] = useState<{id: string, rate: number, name: string} | null>(null);
   
+  // Use parent-provided time range or calculate default
+  const effectiveStartTime = visibleTimeRange?.start || vitalSignsStartTime || new Date(Date.now() - 3600000); // Default to 1 hour ago if no range
+  const effectiveEndTime = visibleTimeRange?.end || vitalSignsEndTime || new Date();
+  const totalDuration = effectiveEndTime.getTime() - effectiveStartTime.getTime();
+
+  // Helper to check if a time falls within the effective range
+  const isTimeInRange = (time: Date) => {
+    return time.getTime() >= effectiveStartTime.getTime() && time.getTime() <= effectiveEndTime.getTime();
+  };
+
   // Fetch medication data from the database
+  const fetchMedicationData = useCallback(async () => {
+    try {
+      console.log('Fetching medication data for patient:', patientId);
+      
+      // Fetch CRIs and boluses
+      const fetchedCRIs = await getAnesthesiaCRIs(patientId);
+      const fetchedBoluses = await getAnesthesiaBoluses(patientId);
+      
+      console.log('Fetched medications:', { 
+        cris: fetchedCRIs.length, 
+        boluses: fetchedBoluses.length 
+      });
+      
+      // Set state with fetched data
+      setActiveCRIs(fetchedCRIs);
+      setBoluses(fetchedBoluses);
+    } catch (error) {
+      console.error('Error fetching medication data:', error);
+      setSnackbar({
+        open: true,
+        message: 'Failed to load anesthesia medications',
+        severity: 'error'
+      });
+    }
+  }, [patientId]);
+
   useEffect(() => {
-    const fetchMedicationData = async () => {
-      try {
-        console.log('Fetching medication data for patient:', patientId);
-        
-        // Fetch CRIs and boluses
-        const fetchedCRIs = await getAnesthesiaCRIs(patientId);
-        const fetchedBoluses = await getAnesthesiaBoluses(patientId);
-        
-        console.log('Fetched medications:', { 
-          cris: fetchedCRIs.length, 
-          boluses: fetchedBoluses.length 
-        });
-        
-        // Set state with fetched data
-        setActiveCRIs(fetchedCRIs);
-        setBoluses(fetchedBoluses);
-      } catch (error) {
-        console.error('Error fetching medication data:', error);
-        setSnackbar({
-          open: true,
-          message: 'Failed to load anesthesia medications',
-          severity: 'error'
-        });
-      }
-    };
-    
     fetchMedicationData();
-    
-    // Add a cleanup function to prevent state updates after unmount
-    return () => {
-      // Cleanup function
-    };
-  }, [patientId, onMedicationAdded]);
+  }, [fetchMedicationData]);
+
+  // Recalculate visible medications when data or time range changes
+  const getVisibleMedications = () => {
+    const visibleCRIs = activeCRIs.filter(cri => {
+      const criStartTime = cri.startTime instanceof Date ? cri.startTime : new Date(cri.startTime);
+      const criEndTime = cri.endTime ? (cri.endTime instanceof Date ? cri.endTime : new Date(cri.endTime)) : effectiveEndTime; // Use effective end if still running
+      // Check for overlap
+      return criStartTime.getTime() < effectiveEndTime.getTime() && criEndTime.getTime() > effectiveStartTime.getTime();
+    });
+
+    const visibleBoluses = boluses.filter(bolus => {
+      const bolusTime = bolus.timestamp instanceof Date ? bolus.timestamp : new Date(bolus.timestamp);
+      return isTimeInRange(bolusTime);
+    });
+
+    return { visibleCRIs, visibleBoluses };
+  };
+
+  // Calculate relative time position between two timestamps based on chart range
+  const calculateRelativeTimePosition = (timestamp: Date, startTime: Date, endTime: Date): number => {
+    const totalRangeDuration = endTime.getTime() - startTime.getTime();
+    if (totalRangeDuration <= 0) return 0; // Prevent division by zero
+    const position = timestamp.getTime() - startTime.getTime();
+    return Math.max(0, Math.min(100, (position / totalRangeDuration) * 100)); // Clamp between 0 and 100
+  };
   
   // Calculate positions based on timestamp relative to the chart range
   const calculateTimePosition = (timestamp: Date): number => {
-    const totalDuration = effectiveEndTime.getTime() - effectiveStartTime.getTime();
-    const position = timestamp.getTime() - effectiveStartTime.getTime();
-    return (position / totalDuration) * 100;
+    return calculateRelativeTimePosition(timestamp, effectiveStartTime, effectiveEndTime);
   };
-  
-  // Calculate width for CRIs based on start and end times
+
+  // Function to calculate CRI bar width percentage
   const calculateCRIWidth = (startTime: Date, endTime?: Date): number => {
-    const end = endTime || new Date();
-    const totalDuration = effectiveEndTime.getTime() - effectiveStartTime.getTime();
-    const duration = end.getTime() - startTime.getTime();
-    return (duration / totalDuration) * 100;
+    const start = startTime instanceof Date ? startTime : new Date(startTime);
+    const end = endTime ? (endTime instanceof Date ? endTime : new Date(endTime)) : effectiveEndTime; // Use effective end if still running
+
+    const clampedStart = Math.max(start.getTime(), effectiveStartTime.getTime());
+    const clampedEnd = Math.min(end.getTime(), effectiveEndTime.getTime());
+
+    const duration = clampedEnd - clampedStart;
+    if (duration <= 0 || totalDuration <= 0) return 0; // No width if duration is zero or negative
+
+    return Math.max(0, Math.min(100, (duration / totalDuration) * 100)); // Clamp between 0 and 100
   };
-  
-  // Filter CRIs and boluses based on visible range
-  const getVisibleMedications = () => {
-    if (!visibleTimeRange) {
-      return { visibleCRIs: activeCRIs, visibleBoluses: boluses };
-    }
-    
-    const { start, end } = visibleTimeRange;
-    
-    const visibleCRIs = activeCRIs.filter(cri => {
-      const criEnd = cri.endTime || new Date();
-      return (cri.startTime <= end && criEnd >= start);
-    });
-    
-    const visibleBoluses = boluses.filter(bolus => 
-      bolus.timestamp >= start && bolus.timestamp <= end
-    );
-    
-    return { visibleCRIs, visibleBoluses };
-  };
-  
-  // Handle adding a new CRI
+
+  // Handlers for adding/editing medications
   const handleAddCRI = async () => {
-    if (!selectedCRI || !criRate) {
-      setSnackbar({
-        open: true,
-        message: 'Please select a medication and enter a rate',
-        severity: 'error'
-      });
+    if (!selectedCRI || !criRate || !criUnit) {
+      setSnackbar({ open: true, message: 'Please select CRI, rate, and unit', severity: 'error' });
       return;
     }
-    
     try {
-      const medication = availableCRIs.find(m => m.name === selectedCRI);
-      if (!medication) {
-        setSnackbar({
-          open: true,
-          message: 'Selected medication not found in available CRIs',
-          severity: 'error'
-        });
-        return;
-      }
-      
       const newCRI: Omit<AnesthesiaCRI, 'id'> = {
         name: selectedCRI,
-        rate: parseFloat(criRate),
-        unit: criUnit || medication.defaultUnit,
         startTime: new Date(),
+        endTime: undefined,
+        rate: parseFloat(criRate),
+        unit: criUnit,
+        rateHistory: [{ rate: parseFloat(criRate), timestamp: new Date() }],
         administeredBy: currentUser
       };
-      
-      if (!patientId) {
-        setSnackbar({
-          open: true,
-          message: 'Patient ID is missing. Cannot add CRI.',
-          severity: 'error'
-        });
-        return;
-      }
-      
-      console.log('Adding CRI medication:', newCRI);
-      const criId = await addAnesthesiaCRI(patientId, newCRI);
-      console.log('CRI added successfully with ID:', criId);
-      
-      setSnackbar({
-        open: true,
-        message: `${selectedCRI} CRI started at ${criRate} ${criUnit || medication.defaultUnit}`,
-        severity: 'success'
-      });
-      
-      // Reset form
+      await addAnesthesiaCRI(patientId, newCRI);
+      setSnackbar({ open: true, message: `${selectedCRI} CRI started`, severity: 'success' });
+      if (onMedicationAdded) onMedicationAdded(); // Trigger refresh in parent
+      fetchMedicationData(); // Refresh local state
+      setAddCRIOpen(false);
       setSelectedCRI('');
       setCRIRate('');
       setCRIUnit('');
-      setAddCRIOpen(false);
-      
-      // Refresh data
-      if (onMedicationAdded) {
-        onMedicationAdded();
-      }
     } catch (error) {
       console.error('Error adding CRI:', error);
-      let errorMessage = 'Failed to add CRI.';
-      
-      if (error instanceof Error) {
-        errorMessage += ` Error: ${error.message}`;
-        console.error('Error details:', error.stack);
-      }
-      
-      setSnackbar({
-        open: true,
-        message: errorMessage,
-        severity: 'error'
-      });
+      setSnackbar({ open: true, message: 'Failed to start CRI', severity: 'error' });
     }
   };
-  
-  // Handle adding a new bolus
+
   const handleAddBolus = async () => {
-    if (!selectedBolus || !bolusAmount) {
-      setSnackbar({
-        open: true,
-        message: 'Please select a medication and enter an amount',
-        severity: 'error'
-      });
+    // Get the medication name from the Autocomplete state
+    const medicationName = typeof selectedBolus === 'string' ? selectedBolus : selectedBolus?.name;
+
+    if (!medicationName || !bolusAmount || !bolusUnit) {
+      setSnackbar({ open: true, message: 'Please provide medication name, total dose, and unit', severity: 'error' });
       return;
     }
-    
     try {
-      const medication = availableBoluses.find(m => m.name === selectedBolus);
-      if (!medication) {
-        setSnackbar({
-          open: true,
-          message: 'Selected medication not found in available boluses',
-          severity: 'error'
-        });
-        return;
-      }
-      
       const newBolus: Omit<AnesthesiaBolus, 'id'> = {
-        name: selectedBolus,
-        dose: parseFloat(bolusAmount),
-        unit: bolusUnit || medication.defaultUnit,
+        name: medicationName.trim(), // Trim whitespace from custom entries
+        dose: parseFloat(bolusAmount), // Use the entered total amount directly
+        unit: bolusUnit,
         timestamp: new Date(),
         administeredBy: currentUser
       };
-      
-      if (!patientId) {
-        setSnackbar({
-          open: true,
-          message: 'Patient ID is missing. Cannot add bolus.',
-          severity: 'error'
-        });
-        return;
-      }
-      
-      console.log('Adding bolus medication:', newBolus);
-      const bolusId = await addAnesthesiaBolus(patientId, newBolus);
-      console.log('Bolus added successfully with ID:', bolusId);
-      
-      setSnackbar({
-        open: true,
-        message: `${selectedBolus} bolus of ${bolusAmount} ${bolusUnit || medication.defaultUnit} administered`,
-        severity: 'success'
-      });
-      
-      // Reset form
-      setSelectedBolus('');
-      setBolusAmount('');
-      setBolusUnit('');
+      await addAnesthesiaBolus(patientId, newBolus);
+      setSnackbar({ open: true, message: `${medicationName} bolus administered`, severity: 'success' });
+      if (onMedicationAdded) onMedicationAdded();
+      fetchMedicationData();
       setAddBolusOpen(false);
-      
-      // Refresh data
-      if (onMedicationAdded) {
-        onMedicationAdded();
-      }
+      setSelectedBolus(null); // Reset autocomplete
+      setBolusAmount('');
+      setBolusUnit(''); // Reset unit
     } catch (error) {
       console.error('Error adding bolus:', error);
-      let errorMessage = 'Failed to add bolus.';
-      
-      if (error instanceof Error) {
-        errorMessage += ` Error: ${error.message}`;
-        console.error('Error details:', error.stack);
-      }
-      
-      setSnackbar({
-        open: true,
-        message: errorMessage,
-        severity: 'error'
-      });
+      setSnackbar({ open: true, message: 'Failed to administer bolus', severity: 'error' });
     }
   };
-  
-  // Open edit rate dialog
-  const handleOpenEditRate = (criId: string, currentRate: number) => {
-    setEditCRIId(criId);
-    setNewRate(currentRate.toString());
-    setEditRateOpen(true);
-  };
-  
-  // Submit rate change
-  const handleUpdateRate = async () => {
-    if (!editCRIId || !newRate) return;
-    
+
+  const handleEditRate = async () => {
+    if (!editCRIId || !newRate) {
+        setSnackbar({ open: true, message: 'Invalid rate', severity: 'error' });
+        return;
+    }
     try {
-      const rateValue = parseFloat(newRate);
-      await updateCRIRate(patientId, editCRIId, rateValue);
-      
-      setSnackbar({
-        open: true,
-        message: `CRI rate updated to ${newRate}`,
-        severity: 'success'
-      });
-      
-      setEditRateOpen(false);
-      
-      // Refresh data
-      if (onMedicationAdded) {
-        onMedicationAdded();
-      }
+        await updateCRIRate(patientId, editCRIId, parseFloat(newRate));
+        setSnackbar({ open: true, message: `Rate updated successfully`, severity: 'success' });
+        fetchMedicationData(); // Refresh local state
+        setEditRateOpen(false);
+        setEditCRIId('');
+        setNewRate('');
     } catch (error) {
-      console.error('Error updating CRI rate:', error);
-      setSnackbar({
-        open: true,
-        message: 'Failed to update rate. Please try again.',
-        severity: 'error'
-      });
+        console.error('Error updating CRI rate:', error);
+        setSnackbar({ open: true, message: 'Failed to update rate', severity: 'error' });
     }
   };
-  
-  // Stop a CRI
+
   const handleStopCRI = async (criId: string) => {
     try {
       await stopCRI(patientId, criId);
-      
-      setSnackbar({
-        open: true,
-        message: 'CRI stopped successfully',
-        severity: 'success'
-      });
-      
-      // Refresh data
-      if (onMedicationAdded) {
-        onMedicationAdded();
-      }
+      setSnackbar({ open: true, message: `CRI stopped successfully`, severity: 'success' });
+      fetchMedicationData(); // Refresh local state
     } catch (error) {
       console.error('Error stopping CRI:', error);
-      setSnackbar({
-        open: true,
-        message: 'Failed to stop CRI. Please try again.',
-        severity: 'error'
-      });
+      setSnackbar({ open: true, message: 'Failed to stop CRI', severity: 'error' });
     }
   };
-  
-  // Close snackbar
-  const handleCloseSnackbar = () => {
-    setSnackbar({ ...snackbar, open: false });
+
+  const handleOpenContextMenu = (event: React.MouseEvent<HTMLElement>, cri: { id: string; rate: number; name: string }) => {
+    event.preventDefault(); // Prevent default right-click menu
+    setContextMenuAnchor({ top: event.clientY, left: event.clientX });
+    setContextMenuCRI(cri);
   };
-  
+
+  const handleCloseContextMenu = () => {
+    setContextMenuAnchor(null);
+    setContextMenuCRI(null);
+  };
+
+  const handleEditRateFromContextMenu = () => {
+    if (contextMenuCRI) {
+      setEditCRIId(contextMenuCRI.id);
+      setNewRate(contextMenuCRI.rate.toString()); // Pre-fill with current rate
+      setEditRateOpen(true);
+    }
+    handleCloseContextMenu();
+  };
+
+  const handleStopCRIFromContextMenu = () => {
+    if (contextMenuCRI) {
+      handleStopCRI(contextMenuCRI.id);
+    }
+    handleCloseContextMenu();
+  };
+
   // Generate time markers for the timeline
   const generateTimeMarkers = () => {
+    const count = 5; // Number of markers (including start and end)
     const markers = [];
-    const totalDuration = effectiveEndTime.getTime() - effectiveStartTime.getTime();
     
-    // Add 5 markers evenly spaced
-    for (let i = 0; i < 5; i++) {
-      const time = new Date(effectiveStartTime.getTime() + (totalDuration * i) / 4);
-      const position = (i * 25); // 0%, 25%, 50%, 75%, 100%
-      
-      markers.push(
-        <Box
-          key={i}
-          sx={{
-            position: 'absolute',
-            bottom: 0,
-            left: `${position}%`,
-            transform: 'translateX(-50%)',
-            height: '8px',
-            width: '1px',
-            bgcolor: 'grey.500'
-          }}
-        >
-          <Typography
-            variant="caption"
-            sx={{
-              position: 'absolute',
-              bottom: 10,
-              left: 0,
-              transform: 'translateX(-50%)',
-              whiteSpace: 'nowrap',
-              fontSize: '0.7rem'
-            }}
-          >
-            {time.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-          </Typography>
-        </Box>
+    if (totalDuration <= 0) return [];
+
+    for (let i = 0; i < count; i++) {
+      const percentage = i / (count - 1) * 100; // 0%, 25%, 50%, 75%, 100%
+      const timestamp = new Date(
+        effectiveStartTime.getTime() + 
+        (effectiveEndTime.getTime() - effectiveStartTime.getTime()) * i / (count - 1)
       );
+      
+      markers.push({
+        position: percentage,
+        timestamp
+      });
     }
     
     return markers;
   };
   
+  // Create markers for the chart
+  const timeMarkers = generateTimeMarkers();
+  
   const { visibleCRIs, visibleBoluses } = getVisibleMedications();
   
-  // Handle medication selection
+  // Handle medication selection for forms
   const handleCRISelection = (name: string) => {
     setSelectedCRI(name);
     const medication = availableCRIs.find(m => m.name === name);
@@ -439,11 +394,15 @@ const AnesthesiaMedicationChart: React.FC<AnesthesiaMedicationChartProps> = ({
     }
   };
   
-  const handleBolusSelection = (name: string) => {
-    setSelectedBolus(name);
-    const medication = availableBoluses.find(m => m.name === name);
-    if (medication) {
-      setBolusUnit(medication.defaultUnit);
+  // Update bolus selection to set unit when an object is selected
+  const handleBolusSelectionChange = (event: React.SyntheticEvent, newValue: string | { name: string; defaultUnit: string; color: string; } | null) => {
+    setSelectedBolus(newValue);
+    if (typeof newValue === 'object' && newValue !== null) {
+      setBolusUnit(newValue.defaultUnit); // Set unit from selected formulary item
+    } else {
+       // Optionally clear or set a default unit if a custom string is entered or cleared
+       // setBolusUnit('mg'); // Example: default to mg for custom
+       setBolusUnit(''); // Or clear it to force manual selection/entry
     }
   };
 
@@ -451,12 +410,14 @@ const AnesthesiaMedicationChart: React.FC<AnesthesiaMedicationChartProps> = ({
   const calculateBolusVerticalPosition = (timestamp: Date, name: string): number => {
     // Group similar medications in same row
     const medicationGroups: { [key: string]: number } = {
+      // Example grouping - adjust as needed
       'Propofol': 0,
       'Ketamine': 1,
       'Hydromorphone': 2,
       'Midazolam': 3,
       'Atropine': 4,
       'Glycopyrrolate': 5,
+      // Add more common drugs
     };
     
     // Get group index for this medication (or default to last group + 1)
@@ -464,47 +425,59 @@ const AnesthesiaMedicationChart: React.FC<AnesthesiaMedicationChartProps> = ({
       ? medicationGroups[name] 
       : Object.keys(medicationGroups).length;
     
-    // Return a percentage based on the group (0% = bottom, ~80% = top)
-    return 15 + (groupIndex * 12); // Space rows evenly (roughly 12% apart)
+    // Return a percentage based on the group (e.g., 15% from bottom + 12% per group)
+    return 15 + (groupIndex * 12); // Adjust multiplier for spacing
+  };
+
+  // Function to get color for medication
+  const getMedicationColor = (name: string, type: 'cri' | 'bolus'): string => {
+    const list = type === 'cri' ? availableCRIs : availableBoluses;
+    const med = list.find(m => m.name === name);
+    return med?.color || '#888888'; // Default grey if not found
   };
 
   return (
-    <Card sx={{ mb: 3, width: '100%' }}>
-      <CardContent sx={{ p: 3 }}>
-        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-          <Typography variant="h6">Medication Administration</Typography>
+    <Card sx={{ mb: 2 }} ref={containerRef}>
+      <CardHeader 
+        title="Anesthesia Medications & CRIs"
+        action={
           <Box>
             <Button 
               variant="outlined" 
-              color="primary" 
+              size="small" 
+              startIcon={<EditIcon />} 
+              onClick={() => setAddBolusOpen(true)} 
               sx={{ mr: 1 }}
-              onClick={() => setAddCRIOpen(true)}
             >
-              Add CRI
+              Add Bolus
             </Button>
             <Button 
               variant="outlined" 
-              onClick={() => setAddBolusOpen(true)}
+              size="small" 
+              startIcon={<EditIcon />} 
+              onClick={() => setAddCRIOpen(true)}
             >
-              Add Medication
+              Start CRI
             </Button>
           </Box>
-        </Box>
-        
-        {/* CRIs Timeline */}
-        <Typography variant="subtitle1" sx={{ mt: 3, mb: 1 }}>
+        }
+      />
+      <Divider />
+      <CardContent>
+        {/* CRI Timeline */}
+        <Typography variant="subtitle1" sx={{ mb: 1 }}>
           Constant Rate Infusions
         </Typography>
-        
         <Box 
           sx={{ 
             position: 'relative', 
-            height: activeCRIs.length === 0 ? '50px' : `${Math.max(50, visibleCRIs.length * 40)}px`, 
+            height: activeCRIs.length === 0 ? '50px' : `${Math.max(50, visibleCRIs.length * 40)}px`,
             mb: 3,
             border: '1px solid',
             borderColor: 'divider',
             borderRadius: 1,
-            p: 2
+            p: 2,
+            overflow: 'hidden'  // Prevent overflow
           }}
         >
           {/* Time axis */}
@@ -521,69 +494,209 @@ const AnesthesiaMedicationChart: React.FC<AnesthesiaMedicationChartProps> = ({
           />
           
           {/* Time markers */}
-          {generateTimeMarkers()}
+          {timeMarkers.map((marker, i) => (
+            <Box
+              key={`time-marker-${i}`}
+              sx={{
+                position: 'absolute',
+                bottom: 0,
+                left: `${marker.position}%`,
+                transform: 'translateX(-50%)',
+                height: '8px',
+                width: '1px',
+                bgcolor: 'grey.500'
+              }}
+            >
+              <Typography
+                variant="caption"
+                sx={{
+                  position: 'absolute',
+                  bottom: 10,
+                  left: i === 0 ? 10 : i === timeMarkers.length - 1 ? -20 : 0,
+                  transform: i === 0 ? 'translateX(0)' : i === timeMarkers.length - 1 ? 'translateX(-80%)' : 'translateX(-50%)', 
+                  whiteSpace: 'nowrap',
+                  fontSize: '0.7rem'
+                }}
+              >
+                {marker.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+              </Typography>
+            </Box>
+          ))}
           
           {/* CRI bars */}
           {visibleCRIs.length === 0 ? (
-            <Typography variant="body2" sx={{ textAlign: 'center', mt: 2, color: 'text.secondary' }}>
-              No active infusions
+            <Typography variant="caption" sx={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', color: 'text.secondary' }}>
+              No active CRIs in this time range.
             </Typography>
           ) : (
             visibleCRIs.map((cri, index) => {
-              // Find the color for this medication
-              const medication = availableCRIs.find(m => m.name === cri.name);
-              const color = medication?.color || '#9e9e9e';
+              const color = getMedicationColor(cri.name, 'cri');
+              const startTime = cri.startTime instanceof Date ? cri.startTime : new Date(cri.startTime);
+              const endTime = cri.endTime ? (cri.endTime instanceof Date ? cri.endTime : new Date(cri.endTime)) : effectiveEndTime;
               
+              const leftPos = calculateTimePosition(startTime);
+              const width = calculateCRIWidth(startTime, endTime);
+              
+              // Skip rendering if width is zero or negative
+              if (width <= 0) return null;
+
+              // Handle rate history
+              const sortedHistory = cri.rateHistory?.length 
+                ? [...cri.rateHistory].sort((a, b) => 
+                    (a.timestamp instanceof Date ? a.timestamp : new Date(a.timestamp)).getTime() - 
+                    (b.timestamp instanceof Date ? b.timestamp : new Date(b.timestamp)).getTime()
+                  )
+                : [];
+              
+              // Create segments for tooltips if rate changes exist
+              const segments: { start: Date; end: Date; rate: number }[] = [];
+              if (sortedHistory.length > 0) {
+                let lastTime = startTime;
+                sortedHistory.forEach((entry, idx) => {
+                  const entryTime = entry.timestamp instanceof Date ? entry.timestamp : new Date(entry.timestamp);
+                  if (idx > 0) {
+                    segments.push({ start: lastTime, end: entryTime, rate: sortedHistory[idx - 1].rate });
+                  }
+                  lastTime = entryTime;
+                });
+                // Add last segment until end time
+                segments.push({ start: lastTime, end: endTime, rate: sortedHistory[sortedHistory.length - 1].rate });
+              }
+
               return (
-                <Box 
+                <Box
                   key={cri.id}
-                  sx={{ 
+                  sx={{
                     position: 'absolute',
-                    top: index * 40 + 10,
-                    left: `${calculateTimePosition(cri.startTime)}%`,
-                    width: `${calculateCRIWidth(cri.startTime, cri.endTime)}%`,
+                    top: index * 40 + 10, // Spacing for each CRI bar
+                    left: `${leftPos}%`,
+                    width: `${width}%`,
                     height: 30,
-                    bgcolor: color,
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    px: 1,
                     borderRadius: '4px',
-                    color: '#fff',
-                    minWidth: '80px',
                     boxShadow: 1,
-                    '&:hover': {
-                      opacity: 0.9,
-                      boxShadow: 2
-                    }
+                    overflow: 'visible',
+                    cursor: 'pointer',
+                    '&:hover': { boxShadow: 2 }
                   }}
+                  onClick={(e) => !cri.endTime && handleOpenContextMenu(e, { id: cri.id, rate: cri.rate, name: cri.name })}
+                  onContextMenu={(e) => !cri.endTime && handleOpenContextMenu(e, { id: cri.id, rate: cri.rate, name: cri.name })}
                 >
-                  <Typography variant="caption" sx={{ fontWeight: 'bold', whiteSpace: 'nowrap' }}>
-                    {cri.name} {cri.rate} {cri.unit}
-                  </Typography>
+                  {/* Main continuous bar */}
+                  <Box
+                    sx={{
+                      position: 'relative',
+                      width: '100%',
+                      height: '100%',
+                      bgcolor: color,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      px: 1,
+                      borderRadius: '4px',
+                      color: '#fff',
+                    }}
+                  >
+                    <Typography variant="caption" sx={{ fontWeight: 'bold', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                      {cri.name} {cri.rate} {cri.unit}
+                    </Typography>
+                  </Box>
                   
-                  {!cri.endTime && (
-                    <Box>
-                      <Tooltip title="Edit Rate">
-                        <IconButton 
-                          size="small" 
-                          sx={{ color: '#fff', p: 0.5 }}
-                          onClick={() => handleOpenEditRate(cri.id, cri.rate)}
-                        >
-                          <EditIcon fontSize="small" />
-                        </IconButton>
-                      </Tooltip>
-                      <Tooltip title="Stop Infusion">
-                        <IconButton 
-                          size="small" 
-                          sx={{ color: '#fff', p: 0.5 }}
-                          onClick={() => handleStopCRI(cri.id)}
-                        >
-                          <StopIcon fontSize="small" />
-                        </IconButton>
-                      </Tooltip>
-                    </Box>
+                  {/* Tooltip overlays for segments or whole bar */}
+                  {segments.length > 0 ? (
+                     segments.map((segment, idx) => {
+                        const segStartTime = segment.start instanceof Date ? segment.start : new Date(segment.start);
+                        const segEndTime = segment.end instanceof Date ? segment.end : new Date(segment.end);
+                        const segLeftPos = calculateRelativeTimePosition(segStartTime, startTime, endTime); // Relative to the bar itself
+                        const segWidth = calculateRelativeTimePosition(segEndTime, segStartTime, endTime); // Relative width within the bar
+                        
+                        return (
+                          <Tooltip
+                            key={`segment-${idx}`}
+                            title={`${cri.name}: ${segment.rate} ${cri.unit} (${segStartTime.toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'})} - ${segEndTime.toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'})})`}
+                            placement="top"
+                            arrow
+                          >
+                            <Box
+                              sx={{
+                                position: 'absolute',
+                                top: 0,
+                                left: `${segLeftPos}%`,
+                                width: `${segWidth}%`,
+                                height: '100%',
+                                cursor: 'pointer',
+                                // '&:hover': { background: 'rgba(255,255,255,0.1)' } // Optional hover effect
+                              }}
+                            />
+                          </Tooltip>
+                        );
+                      })
+                  ) : (
+                    <Tooltip
+                      title={`${cri.name}: ${cri.rate} ${cri.unit} (${startTime.toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'})} - ${endTime.toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'})})`}
+                      placement="top"
+                      arrow
+                    >
+                      <Box
+                        sx={{
+                          position: 'absolute',
+                          top: 0,
+                          left: 0,
+                          width: '100%',
+                          height: '100%',
+                          cursor: 'pointer',
+                        }}
+                      />
+                    </Tooltip>
                   )}
+                  
+                  {/* Vertical change markers */}
+                  {sortedHistory.slice(1).map((entry, idx) => {
+                    const changeTime = entry.timestamp instanceof Date ? entry.timestamp : new Date(entry.timestamp);
+                    // Calculate position relative to the start of the *bar*, not the chart
+                    const relativePos = calculateRelativeTimePosition(changeTime, startTime, endTime);
+                    
+                    if (relativePos <= 0 || relativePos >= 100) return null; // Only show within the bar
+                    
+                    return (
+                      <React.Fragment key={`marker-${idx}`}>
+                        <Box
+                          sx={{
+                            position: 'absolute',
+                            left: `${relativePos}%`,
+                            top: 0,
+                            height: '100%',
+                            width: '2px',
+                            bgcolor: 'rgba(255,255,255,0.9)',
+                            pointerEvents: 'none'
+                          }}
+                        />
+                        <Tooltip title={`Rate changed to ${entry.rate} ${cri.unit} at ${changeTime.toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'})}`}>
+                          <Box
+                            sx={{
+                              position: 'absolute',
+                              left: `${relativePos}%`,
+                              top: -18,
+                              transform: 'translateX(-50%)',
+                              bgcolor: 'white',
+                              color: 'text.primary',
+                              px: 0.5,
+                              py: 0.25,
+                              borderRadius: 1,
+                              fontSize: '0.65rem',
+                              fontWeight: 'bold',
+                              boxShadow: '0 1px 3px rgba(0,0,0,0.2)',
+                              border: '1px solid',
+                              borderColor: 'divider',
+                              pointerEvents: 'none',
+                              whiteSpace: 'nowrap'
+                            }}
+                          >
+                            {entry.rate}
+                          </Box>
+                        </Tooltip>
+                      </React.Fragment>
+                    );
+                  })}
                 </Box>
               );
             })
@@ -592,18 +705,18 @@ const AnesthesiaMedicationChart: React.FC<AnesthesiaMedicationChartProps> = ({
         
         {/* Bolus Timeline */}
         <Typography variant="subtitle1" sx={{ mt: 3, mb: 1 }}>
-          Medications
+          Bolus Medications
         </Typography>
-        
         <Box 
           sx={{ 
             position: 'relative', 
-            height: '120px', // Increased height to accommodate staggered rows
+            height: '120px',
             mb: 1,
             border: '1px solid',
             borderColor: 'divider',
             borderRadius: 1,
-            p: 2
+            p: 2,
+            overflow: 'hidden'  // Prevent overflow
           }}
         >
           {/* Time axis */}
@@ -620,270 +733,337 @@ const AnesthesiaMedicationChart: React.FC<AnesthesiaMedicationChartProps> = ({
           />
           
           {/* Time markers */}
-          {generateTimeMarkers()}
-          
-          {/* Medication group labels on left side */}
-          <Box sx={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: '80px', borderRight: '1px dashed rgba(0,0,0,0.1)', px: 1 }}>
-            {Object.entries({
-              'Propofol': 0,
-              'Ketamine': 1,
-              'Hydromorphone': 2,
-              'Midazolam': 3, 
-              'Atropine': 4
-            }).map(([name, index]) => (
-              <Typography 
-                key={name}
-                variant="caption" 
-                sx={{ 
+          {timeMarkers.map((marker, i) => (
+            <Box
+              key={`bolus-time-marker-${i}`}
+              sx={{
+                position: 'absolute',
+                bottom: 0,
+                left: `${marker.position}%`,
+                transform: 'translateX(-50%)',
+                height: '8px',
+                width: '1px',
+                bgcolor: 'grey.500'
+              }}
+            >
+              <Typography
+                variant="caption"
+                sx={{
                   position: 'absolute',
-                  left: 0,
-                  top: `${15 + (index * 12)}%`,
-                  fontSize: '0.65rem',
-                  color: 'text.secondary',
-                  width: '75px',
-                  textAlign: 'right',
-                  pr: 1,
+                  bottom: 10,
+                  left: i === 0 ? 10 : i === timeMarkers.length - 1 ? -20 : 0,
+                  transform: i === 0 ? 'translateX(0)' : i === timeMarkers.length - 1 ? 'translateX(-80%)' : 'translateX(-50%)', 
                   whiteSpace: 'nowrap',
-                  overflow: 'hidden',
-                  textOverflow: 'ellipsis'
+                  fontSize: '0.7rem'
+                }}
+              >
+                {marker.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+              </Typography>
+            </Box>
+          ))}
+          
+          {/* Background medication name labels - only for administered medications */}
+          {[...new Set(visibleBoluses.map(b => b.name))].map((name, index) => (
+             <Typography
+                key={`label-${name}`}
+                variant="caption"
+                sx={{
+                  position: 'absolute',
+                  left: 15,
+                  bottom: `${calculateBolusVerticalPosition(new Date(), name)}%`,
+                  transform: 'translateY(50%)',
+                  color: 'text.disabled',
+                  fontSize: '0.7rem'
                 }}
               >
                 {name}
               </Typography>
-            ))}
-          </Box>
-          
-          {/* Horizontal grid lines for medication groups */}
-          {Object.values({
-            'Propofol': 0,
-            'Ketamine': 1,
-            'Hydromorphone': 2,
-            'Midazolam': 3, 
-            'Atropine': 4
-          }).map((index) => (
-            <Box 
-              key={`grid-${index}`}
-              sx={{ 
-                position: 'absolute',
-                left: '80px', 
-                right: 0,
-                top: `${15 + (index * 12)}%`,
-                height: '1px',
-                bgcolor: 'rgba(0,0,0,0.05)'
-              }}
-            />
           ))}
-          
-          {/* Bolus markers */}
-          {visibleBoluses.length === 0 ? (
-            <Typography variant="body2" sx={{ textAlign: 'center', mt: 2, color: 'text.secondary' }}>
-              No medications administered
-            </Typography>
-          ) : (
-            visibleBoluses.map((bolus) => {
-              // Find the color for this medication
-              const medication = availableBoluses.find(m => m.name === bolus.name);
-              const color = medication?.color || '#9e9e9e';
-              
-              // Calculate vertical position based on medication type
-              const verticalPosition = calculateBolusVerticalPosition(bolus.timestamp, bolus.name);
-              
-              return (
-                <Tooltip 
-                  key={bolus.id}
-                  title={`${bolus.name} ${bolus.dose} ${bolus.unit} at ${bolus.timestamp.toLocaleTimeString()}`}
-                >
-                  <Box 
-                    sx={{ 
-                      position: 'absolute',
-                      top: `${verticalPosition}%`,
-                      left: `${calculateTimePosition(bolus.timestamp)}%`,
-                      transform: 'translate(-50%, -50%)',
-                      zIndex: 2,
-                      display: 'flex',
-                      flexDirection: 'column',
-                      alignItems: 'center'
-                    }}
-                  >
-                    {/* Diamond shape for bolus with dose indicator */}
-                    <Box sx={{ 
-                      width: '20px', 
-                      height: '20px', 
-                      bgcolor: color,
-                      transform: 'rotate(45deg)',
-                      borderRadius: '2px',
-                      display: 'flex',
-                      justifyContent: 'center',
-                      alignItems: 'center',
-                      boxShadow: 1
-                    }}>
-                      <Typography 
-                        variant="caption" 
-                        sx={{ 
-                          color: 'white', 
-                          fontWeight: 'bold',
-                          fontSize: '0.6rem',
-                          transform: 'rotate(-45deg)'
-                        }}
-                      >
-                        {bolus.dose}
-                      </Typography>
-                    </Box>
-                    
-                    {/* Draw line down to time axis */}
-                    <Box sx={{
-                      position: 'absolute',
-                      top: '10px',
-                      width: '1px',
-                      height: `calc(100% - ${verticalPosition}% + 5px)`,
-                      bgcolor: 'rgba(0,0,0,0.1)',
-                      zIndex: 1
-                    }} />
-                  </Box>
-                </Tooltip>
-              );
-            })
+
+          {/* Bolus markers (Diamonds) */}
+          {visibleBoluses.map((bolus) => {
+            const timestamp = bolus.timestamp instanceof Date ? bolus.timestamp : new Date(bolus.timestamp);
+            const color = getMedicationColor(bolus.name, 'bolus');
+            const position = calculateTimePosition(timestamp);
+            const verticalPosition = calculateBolusVerticalPosition(timestamp, bolus.name);
+
+            return (
+              <Tooltip
+                key={bolus.id}
+                title={`${bolus.name} ${bolus.dose} ${bolus.unit} at ${timestamp.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}`}
+                placement="top"
+                arrow
+              >
+                <Box
+                  sx={{
+                    position: 'absolute',
+                    left: `${position}%`,
+                    bottom: `${verticalPosition}%`,
+                    width: '10px',
+                    height: '10px',
+                    bgcolor: color,
+                    transform: 'translate(-50%, 50%) rotate(45deg)', // Diamond shape centered on time
+                    borderRadius: '1px',
+                    cursor: 'pointer',
+                  }}
+                />
+              </Tooltip>
+            );
+          })}
+
+          {visibleBoluses.length === 0 && (
+              <Typography variant="caption" sx={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', color: 'text.secondary' }}>
+                  No bolus medications in this time range.
+              </Typography>
           )}
         </Box>
         
-        {/* Legend for bolus medications */}
-        <Box sx={{ mt: 1, display: 'flex', flexWrap: 'wrap', gap: 2, justifyContent: 'flex-end' }}>
-          {availableBoluses.slice(0, 5).map((med) => (
-            <Box key={med.name} sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+        {/* Legend for Bolus medications */}
+        <Box sx={{ 
+          mt: 1, 
+          display: 'flex', 
+          flexWrap: 'wrap', 
+          gap: 1, 
+          bgcolor: 'rgba(0,0,0,0.02)', 
+          p: 1, 
+          borderRadius: 1 
+        }}>
+          {[...new Set(visibleBoluses.map(b => b.name))].map(name => {
+            const color = getMedicationColor(name, 'bolus');
+            return (
               <Box 
+                key={`legend-${name}`}
                 sx={{ 
-                  width: '10px', 
-                  height: '10px', 
-                  bgcolor: med.color,
-                  transform: 'rotate(45deg)',
-                  borderRadius: '1px'
-                }} 
-              />
-              <Typography variant="caption" color="text.secondary">
-                {med.name}
-              </Typography>
-            </Box>
-          ))}
+                  display: 'flex', 
+                  alignItems: 'center', 
+                  mr: 2,
+                  bgcolor: 'white',
+                  px: 1.5,
+                  py: 0.5,
+                  borderRadius: 1,
+                  boxShadow: '0 1px 2px rgba(0,0,0,0.1)',
+                  border: '1px solid',
+                  borderColor: 'divider'
+                }}
+              >
+                <Box 
+                  sx={{ 
+                    width: '10px', 
+                    height: '10px', 
+                    transform: 'rotate(45deg)',
+                    borderRadius: '1px',
+                    bgcolor: color,
+                    mr: 1
+                  }} 
+                />
+                <Typography variant="caption" sx={{ fontWeight: 'medium' }}>{name}</Typography>
+              </Box>
+            );
+          })}
         </Box>
       </CardContent>
       
       {/* Add CRI Dialog */}
-      <Dialog open={addCRIOpen} onClose={() => setAddCRIOpen(false)} maxWidth="xs" fullWidth>
-        <DialogTitle>Add Constant Rate Infusion</DialogTitle>
+      <Dialog open={addCRIOpen} onClose={() => setAddCRIOpen(false)}>
+        <DialogTitle>Start New CRI</DialogTitle>
         <DialogContent>
-          <FormControl fullWidth sx={{ mt: 2 }}>
-            <InputLabel>Medication</InputLabel>
+          <FormControl fullWidth margin="normal">
+            <InputLabel id="cri-select-label">Medication</InputLabel>
             <Select
+              labelId="cri-select-label"
               value={selectedCRI}
               onChange={(e) => handleCRISelection(e.target.value)}
               label="Medication"
             >
-              {availableCRIs.map((med) => (
-                <MenuItem key={med.name} value={med.name}>
-                  {med.name}
-                </MenuItem>
+              {availableCRIs.map(med => (
+                <MenuItem key={med.name} value={med.name}>{med.name}</MenuItem>
               ))}
             </Select>
           </FormControl>
-          
           <TextField
-            margin="normal"
-            fullWidth
             label="Rate"
             type="number"
             value={criRate}
             onChange={(e) => setCRIRate(e.target.value)}
+            fullWidth
+            margin="normal"
             InputProps={{
-              endAdornment: criUnit
+              endAdornment: <Typography variant="caption">{criUnit}</Typography>,
             }}
           />
+          {/* Consider adding unit selection if needed */}
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setAddCRIOpen(false)}>Cancel</Button>
-          <Button onClick={handleAddCRI} variant="contained" color="primary">
-            Start Infusion
-          </Button>
+          <Button onClick={handleAddCRI} variant="contained">Start CRI</Button>
         </DialogActions>
       </Dialog>
-      
-      {/* Add Bolus Dialog */}
+
+      {/* Add Bolus Dialog - Updated */}
       <Dialog open={addBolusOpen} onClose={() => setAddBolusOpen(false)} maxWidth="xs" fullWidth>
-        <DialogTitle>Add Medication</DialogTitle>
+        <DialogTitle>Administer Bolus</DialogTitle>
         <DialogContent>
-          <FormControl fullWidth sx={{ mt: 2 }}>
-            <InputLabel>Medication</InputLabel>
-            <Select
-              value={selectedBolus}
-              onChange={(e) => handleBolusSelection(e.target.value)}
-              label="Medication"
-            >
-              {availableBoluses.map((med) => (
-                <MenuItem key={med.name} value={med.name}>
-                  {med.name}
-                </MenuItem>
-              ))}
-            </Select>
-          </FormControl>
-          
+          <Autocomplete
+            freeSolo // Allow custom text entry
+            options={availableBoluses} // Use predefined list as suggestions
+            getOptionLabel={(option) => typeof option === 'string' ? option : option.name} // How to display options
+            value={selectedBolus}
+            onChange={handleBolusSelectionChange}
+            onInputChange={(event, newInputValue) => {
+              // If user types custom value not matching an object, update state
+              if (availableBoluses.findIndex(opt => opt.name === newInputValue) === -1) {
+                 // Check if the input change is different from the current object's name
+                 if (typeof selectedBolus !== 'string' && selectedBolus?.name !== newInputValue) {
+                    setSelectedBolus(newInputValue); 
+                    setBolusUnit('mg'); // Default to mg for custom entry, or clear it
+                 }
+              }
+            }}
+            renderInput={(params) => (
+              <TextField 
+                {...params} 
+                label="Medication Name" 
+                margin="normal" 
+                variant="outlined" 
+              />
+            )}
+            renderOption={(props, option) => (
+                <li {...props} key={option.name}>
+                  {option.name}
+                </li>
+            )}
+            isOptionEqualToValue={(option, value) => {
+                // Handles comparing selected object/string with options
+                if (typeof value === 'string') {
+                    return option.name === value; // Compare option name to string value
+                } else if (value) {
+                    return option.name === value.name; // Compare option name to selected object name
+                }
+                return false;
+            }}
+          />
           <TextField
-            margin="normal"
-            fullWidth
-            label="Dose"
+            label="Total Dose" // Changed label
             type="number"
             value={bolusAmount}
             onChange={(e) => setBolusAmount(e.target.value)}
+            fullWidth
+            margin="normal"
+            required // Mark as required
             InputProps={{
-              endAdornment: bolusUnit
+                // Removed endAdornment showing unit automatically
             }}
+          />
+           <TextField // Add a separate field for the unit
+            label="Unit"
+            type="text"
+            value={bolusUnit}
+            onChange={(e) => setBolusUnit(e.target.value)}
+            fullWidth
+            margin="normal"
+            required // Mark as required
+            placeholder="e.g., mg, mcg"
           />
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setAddBolusOpen(false)}>Cancel</Button>
-          <Button onClick={handleAddBolus} variant="contained" color="primary">
-            Administer
-          </Button>
+          <Button onClick={handleAddBolus} variant="contained">Administer</Button>
         </DialogActions>
       </Dialog>
-      
+
       {/* Edit Rate Dialog */}
-      <Dialog open={editRateOpen} onClose={() => setEditRateOpen(false)} maxWidth="xs" fullWidth>
-        <DialogTitle>Update Infusion Rate</DialogTitle>
+      <Dialog open={editRateOpen} onClose={() => setEditRateOpen(false)}>
+        <DialogTitle>Edit CRI Rate</DialogTitle>
         <DialogContent>
           <TextField
-            autoFocus
-            margin="normal"
-            fullWidth
             label="New Rate"
             type="number"
             value={newRate}
             onChange={(e) => setNewRate(e.target.value)}
+            fullWidth
+            margin="normal"
           />
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setEditRateOpen(false)}>Cancel</Button>
-          <Button onClick={handleUpdateRate} variant="contained" color="primary">
-            Update Rate
-          </Button>
+          <Button onClick={handleEditRate} variant="contained">Update Rate</Button>
         </DialogActions>
       </Dialog>
+
+      {/* Context Menu for CRIs */}
+      {contextMenuAnchor && contextMenuCRI && (
+        <Box
+          sx={{
+            position: 'fixed',
+            top: contextMenuAnchor.top,
+            left: contextMenuAnchor.left,
+            bgcolor: 'background.paper',
+            borderRadius: 1,
+            boxShadow: 3,
+            zIndex: 9999,
+            overflow: 'hidden',
+            minWidth: 180
+          }}
+        >
+          <Box sx={{ py: 1, px: 2, bgcolor: 'primary.main', color: 'white' }}>
+            <Typography variant="subtitle2">{contextMenuCRI.name}</Typography>
+          </Box>
+          
+          <Box 
+            sx={{ 
+              p: 1, 
+              display: 'flex', 
+              flexDirection: 'column' 
+            }}
+            onClick={(e) => e.stopPropagation()} // Prevent closing when clicking inside
+          >
+            <Button
+              startIcon={<EditIcon />}
+              onClick={handleEditRateFromContextMenu}
+              sx={{ justifyContent: 'flex-start', mb: 1 }}
+            >
+              Edit Rate
+            </Button>
+            <Button
+              startIcon={<StopIcon />}
+              onClick={handleStopCRIFromContextMenu}
+              color="error"
+              sx={{ justifyContent: 'flex-start' }}
+            >
+              Stop Infusion
+            </Button>
+          </Box>
+        </Box>
+      )}
       
+      {/* Overlay to capture clicks outside the context menu */}
+      {contextMenuAnchor && (
+        <Box
+          sx={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            zIndex: 9998
+          }}
+          onClick={handleCloseContextMenu} // Close when clicking outside
+        />
+      )}
+
       {/* Snackbar for notifications */}
       <Snackbar 
         open={snackbar.open} 
         autoHideDuration={6000} 
-        onClose={handleCloseSnackbar}
+        onClose={() => setSnackbar({ ...snackbar, open: false })} 
         anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
       >
-        <Alert 
-          onClose={handleCloseSnackbar} 
-          severity={snackbar.severity}
-          sx={{ width: '100%' }}
-        >
+        <Alert onClose={() => setSnackbar({ ...snackbar, open: false })} severity={snackbar.severity} sx={{ width: '100%' }}>
           {snackbar.message}
         </Alert>
       </Snackbar>
     </Card>
   );
-};
+}); // Close forwardRef
 
 export default AnesthesiaMedicationChart; 

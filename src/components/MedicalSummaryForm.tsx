@@ -85,10 +85,11 @@ const MedicalSummaryForm: React.FC<MedicalSummaryFormProps> = ({ patientId, init
     neuroMuscStatus: initialSummary?.neuroMuscStatus || '',
     currentMeds: initialSummary?.currentMeds || [],
     asaStatus: initialSummary?.asaStatus || 'I',
+    asaEmergency: initialSummary?.asaStatus === 'E' || false,
     problemList: initialSummary?.problemList || [],
     anestheticComplications: initialSummary?.anestheticComplications || [],
     cpr: initialSummary?.cpr || false,
-    clientAuth: initialSummary?.clientAuth || false,
+    clientAuth: initialSummary?.clientAuth ?? false,
     lastUpdated: initialSummary?.lastUpdated || new Date(),
     updatedBy: initialSummary?.updatedBy || currentUser?.email || currentUser?.uid || ''
   });
@@ -210,8 +211,12 @@ const MedicalSummaryForm: React.FC<MedicalSummaryFormProps> = ({ patientId, init
       // Update the lastUpdated and updatedBy fields
       const updatedSummary = {
         ...formValues,
+        // Set ASA status based on combination of base status and emergency flag
+        asaStatus: formValues.asaEmergency ? 'E' : formValues.asaStatus,
         lastUpdated: new Date(),
-        updatedBy: currentUser?.email || currentUser?.uid || 'unknown'
+        updatedBy: currentUser?.email || currentUser?.uid || 'unknown',
+        // Make sure clientAuth is included, even though we removed the UI
+        clientAuth: formValues.cpr // If CPR is authorized, assume client authorization
       };
 
       await updateMedicalSummary(patientId, updatedSummary);
@@ -249,35 +254,6 @@ const MedicalSummaryForm: React.FC<MedicalSummaryFormProps> = ({ patientId, init
 
       <Paper elevation={2} sx={{ p: 3, mb: 3 }}>
         <Typography variant="h6" gutterBottom>
-          General Information
-        </Typography>
-        <MuiGrid container spacing={2}>
-          <MuiGrid item xs={12} md={6}>
-            <TextField
-              label="Temperament"
-              name="temperament"
-              value={formValues.temperament}
-              onChange={handleChange}
-              fullWidth
-              margin="normal"
-            />
-          </MuiGrid>
-          <MuiGrid item xs={12} md={6}>
-            <TextField
-              label="Body Condition Score"
-              name="bcs"
-              value={formValues.bcs}
-              onChange={handleChange}
-              fullWidth
-              margin="normal"
-              placeholder="e.g. 5/9"
-            />
-          </MuiGrid>
-        </MuiGrid>
-      </Paper>
-
-      <Paper elevation={2} sx={{ p: 3, mb: 3 }}>
-        <Typography variant="h6" gutterBottom>
           Medical History
         </Typography>
         <TextField
@@ -293,14 +269,14 @@ const MedicalSummaryForm: React.FC<MedicalSummaryFormProps> = ({ patientId, init
 
         <Box sx={{ mt: 2 }}>
           <Typography variant="subtitle1" gutterBottom>
-            Previous Diagnoses
+            Problem List
           </Typography>
           <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, mb: 2 }}>
-            {formValues.previousDiagnoses.map((diagnosis, index) => (
+            {formValues.problemList.map((problem, index) => (
               <Chip
                 key={index}
-                label={diagnosis}
-                onDelete={() => handleRemoveDiagnosis(index)}
+                label={problem}
+                onDelete={() => handleRemoveProblem(index)}
                 color="primary"
                 variant="outlined"
               />
@@ -308,15 +284,15 @@ const MedicalSummaryForm: React.FC<MedicalSummaryFormProps> = ({ patientId, init
           </Box>
           <Box sx={{ display: 'flex', gap: 1 }}>
             <TextField
-              label="Add Diagnosis"
-              value={newDiagnosis}
-              onChange={(e) => setNewDiagnosis(e.target.value)}
+              label="Add Problem"
+              value={newProblem}
+              onChange={(e) => setNewProblem(e.target.value)}
               size="small"
             />
             <Button
               variant="contained"
               size="small"
-              onClick={handleAddDiagnosis}
+              onClick={handleAddProblem}
               startIcon={<AddIcon />}
             >
               Add
@@ -325,54 +301,81 @@ const MedicalSummaryForm: React.FC<MedicalSummaryFormProps> = ({ patientId, init
         </Box>
 
         <Box sx={{ mt: 3 }}>
-          <FormControlLabel
-            control={
-              <Checkbox
-                checked={formValues.previousAnesthesia}
-                onChange={handleChange}
-                name="previousAnesthesia"
+          <Typography variant="subtitle1" gutterBottom>
+            Current Medications
+          </Typography>
+          <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, mb: 2 }}>
+            {formValues.currentMeds.map((med, index) => (
+              <Chip
+                key={index}
+                label={med}
+                onDelete={() => handleRemoveMedication(index)}
+                color="primary"
+                variant="outlined"
               />
-            }
-            label="Previous Anesthesia"
-          />
-          <TextField
-            label="Anesthesia Details"
-            name="anesthesiaDetails"
-            value={formValues.anesthesiaDetails}
-            onChange={handleChange}
-            fullWidth
-            disabled={!formValues.previousAnesthesia}
-            margin="normal"
-          />
+            ))}
+          </Box>
+          <Box sx={{ display: 'flex', gap: 1 }}>
+            <TextField
+              label="Add Medication"
+              value={newMedication}
+              onChange={(e) => setNewMedication(e.target.value)}
+              size="small"
+            />
+            <Button
+              variant="contained"
+              size="small"
+              onClick={handleAddMedication}
+              startIcon={<AddIcon />}
+            >
+              Add
+            </Button>
+          </Box>
         </Box>
       </Paper>
 
       <Paper elevation={2} sx={{ p: 3, mb: 3 }}>
         <Typography variant="h6" gutterBottom>
-          Current Status
+          Previous Anesthesia
         </Typography>
         <MuiGrid container spacing={2}>
-          <MuiGrid item xs={12} md={6}>
+          <MuiGrid item xs={12}>
             <FormControlLabel
               control={
                 <Checkbox
-                  checked={formValues.ivInPlace}
+                  checked={formValues.previousAnesthesia}
                   onChange={handleChange}
-                  name="ivInPlace"
+                  name="previousAnesthesia"
                 />
               }
-              label="IV In Place"
+              label="Previous Anesthesia Record Available?"
             />
           </MuiGrid>
-          <MuiGrid item xs={12} md={6}>
-            <TextField
-              label="ETT Size"
-              name="ettSize"
-              value={formValues.ettSize}
-              onChange={handleChange}
-              fullWidth
-            />
-          </MuiGrid>
+          
+          {formValues.previousAnesthesia && (
+            <>
+              <MuiGrid item xs={12} md={6}>
+                <TextField
+                  label="Anesthesia Details (Drugs Used & Response)"
+                  name="anesthesiaDetails"
+                  value={formValues.anesthesiaDetails}
+                  onChange={handleChange}
+                  fullWidth
+                  margin="normal"
+                />
+              </MuiGrid>
+              <MuiGrid item xs={12} md={6}>
+                <TextField
+                  label="ETT Size"
+                  name="ettSize"
+                  value={formValues.ettSize}
+                  onChange={handleChange}
+                  fullWidth
+                  margin="normal"
+                />
+              </MuiGrid>
+            </>
+          )}
         </MuiGrid>
       </Paper>
 
@@ -435,16 +438,6 @@ const MedicalSummaryForm: React.FC<MedicalSummaryFormProps> = ({ patientId, init
           </MuiGrid>
           <MuiGrid item xs={12} md={4}>
             <TextField
-              label="Weight"
-              name="weight"
-              value={formValues.physicalExam.weight}
-              onChange={handlePhysicalExamChange}
-              fullWidth
-              margin="normal"
-            />
-          </MuiGrid>
-          <MuiGrid item xs={12} md={4}>
-            <TextField
               label="Mucous Membranes"
               name="mucousMembranes"
               value={formValues.physicalExam.mucousMembranes}
@@ -481,6 +474,27 @@ const MedicalSummaryForm: React.FC<MedicalSummaryFormProps> = ({ patientId, init
               onChange={handlePhysicalExamChange}
               fullWidth
               margin="normal"
+            />
+          </MuiGrid>
+          <MuiGrid item xs={12} md={6}>
+            <TextField
+              label="Temperament"
+              name="temperament"
+              value={formValues.temperament}
+              onChange={handleChange}
+              fullWidth
+              margin="normal"
+            />
+          </MuiGrid>
+          <MuiGrid item xs={12} md={6}>
+            <TextField
+              label="Body Condition Score"
+              name="bcs"
+              value={formValues.bcs}
+              onChange={handleChange}
+              fullWidth
+              margin="normal"
+              placeholder="e.g. 5/9"
             />
           </MuiGrid>
         </MuiGrid>
@@ -710,39 +724,6 @@ const MedicalSummaryForm: React.FC<MedicalSummaryFormProps> = ({ patientId, init
             />
           </MuiGrid>
         </MuiGrid>
-
-        <Box sx={{ mt: 3 }}>
-          <Typography variant="subtitle1" gutterBottom>
-            Current Medications
-          </Typography>
-          <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, mb: 2 }}>
-            {formValues.currentMeds.map((med, index) => (
-              <Chip
-                key={index}
-                label={med}
-                onDelete={() => handleRemoveMedication(index)}
-                color="primary"
-                variant="outlined"
-              />
-            ))}
-          </Box>
-          <Box sx={{ display: 'flex', gap: 1 }}>
-            <TextField
-              label="Add Medication"
-              value={newMedication}
-              onChange={(e) => setNewMedication(e.target.value)}
-              size="small"
-            />
-            <Button
-              variant="contained"
-              size="small"
-              onClick={handleAddMedication}
-              startIcon={<AddIcon />}
-            >
-              Add
-            </Button>
-          </Box>
-        </Box>
       </Paper>
 
       <Paper elevation={2} sx={{ p: 3, mb: 3 }}>
@@ -750,54 +731,35 @@ const MedicalSummaryForm: React.FC<MedicalSummaryFormProps> = ({ patientId, init
           Anesthetic Risk Assessment
         </Typography>
         
-        <FormControl component="fieldset" sx={{ mb: 2 }}>
-          <FormLabel component="legend">ASA Status</FormLabel>
-          <RadioGroup
-            row
-            name="asaStatus"
-            value={formValues.asaStatus}
-            onChange={handleChange}
-          >
-            <FormControlLabel value="I" control={<Radio />} label="I" />
-            <FormControlLabel value="II" control={<Radio />} label="II" />
-            <FormControlLabel value="III" control={<Radio />} label="III" />
-            <FormControlLabel value="IV" control={<Radio />} label="IV" />
-            <FormControlLabel value="V" control={<Radio />} label="V" />
-            <FormControlLabel value="E" control={<Radio />} label="E (Emergency)" />
-          </RadioGroup>
-        </FormControl>
-
-        <Box sx={{ mt: 2 }}>
-          <Typography variant="subtitle1" gutterBottom>
-            Problem List
-          </Typography>
-          <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, mb: 2 }}>
-            {formValues.problemList.map((problem, index) => (
-              <Chip
-                key={index}
-                label={problem}
-                onDelete={() => handleRemoveProblem(index)}
-                color="primary"
-                variant="outlined"
-              />
-            ))}
-          </Box>
-          <Box sx={{ display: 'flex', gap: 1 }}>
-            <TextField
-              label="Add Problem"
-              value={newProblem}
-              onChange={(e) => setNewProblem(e.target.value)}
-              size="small"
-            />
-            <Button
-              variant="contained"
-              size="small"
-              onClick={handleAddProblem}
-              startIcon={<AddIcon />}
+        <Box sx={{ mb: 2 }}>
+          <FormControl component="fieldset">
+            <FormLabel component="legend">ASA Status</FormLabel>
+            <RadioGroup
+              row
+              name="asaStatus"
+              value={formValues.asaStatus}
+              onChange={handleChange}
             >
-              Add
-            </Button>
-          </Box>
+              <FormControlLabel value="I" control={<Radio />} label="I" />
+              <FormControlLabel value="II" control={<Radio />} label="II" />
+              <FormControlLabel value="III" control={<Radio />} label="III" />
+              <FormControlLabel value="IV" control={<Radio />} label="IV" />
+              <FormControlLabel value="V" control={<Radio />} label="V" />
+            </RadioGroup>
+          </FormControl>
+          <FormControlLabel
+            control={
+              <Checkbox
+                checked={formValues.asaEmergency}
+                onChange={(e) => setFormValues(prev => ({
+                  ...prev, 
+                  asaEmergency: e.target.checked
+                }))}
+                name="asaEmergency"
+              />
+            }
+            label="E (Emergency)"
+          />
         </Box>
 
         <Box sx={{ mt: 3 }}>
@@ -837,32 +799,28 @@ const MedicalSummaryForm: React.FC<MedicalSummaryFormProps> = ({ patientId, init
 
       <Paper elevation={2} sx={{ p: 3, mb: 3 }}>
         <Typography variant="h6" gutterBottom>
-          Emergency Preferences
+          CPR Status
         </Typography>
         <MuiGrid container spacing={2}>
           <MuiGrid item xs={12}>
-            <FormControlLabel
-              control={
-                <Checkbox
-                  checked={formValues.cpr}
-                  onChange={handleChange}
-                  name="cpr"
-                />
-              }
-              label="CPR Authorized"
-            />
-          </MuiGrid>
-          <MuiGrid item xs={12}>
-            <FormControlLabel
-              control={
-                <Checkbox
-                  checked={formValues.clientAuth}
-                  onChange={handleChange}
-                  name="clientAuth"
-                />
-              }
-              label="Client Authorization Obtained"
-            />
+            <FormControl component="fieldset">
+              <FormLabel component="legend">CPR Status</FormLabel>
+              <RadioGroup
+                row
+                name="cpr"
+                value={formValues.cpr ? "true" : "false"}
+                onChange={(e) => {
+                  const newValue = e.target.value === "true";
+                  setFormValues(prev => ({
+                    ...prev,
+                    cpr: newValue
+                  }));
+                }}
+              >
+                <FormControlLabel value="true" control={<Radio />} label="CPR Authorized" />
+                <FormControlLabel value="false" control={<Radio />} label="DNR (Do Not Resuscitate)" />
+              </RadioGroup>
+            </FormControl>
           </MuiGrid>
         </MuiGrid>
       </Paper>
