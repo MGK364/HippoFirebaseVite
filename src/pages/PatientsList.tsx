@@ -1,15 +1,15 @@
 import React, { useState, useEffect } from 'react';
-import { 
-  Box, 
+import {
+  Box,
   Button,
-  Typography, 
-  TextField, 
-  Table, 
-  TableBody, 
-  TableCell, 
-  TableContainer, 
-  TableHead, 
-  TableRow, 
+  Typography,
+  TextField,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
   Paper,
   CircularProgress,
   Select,
@@ -17,13 +17,17 @@ import {
   SelectChangeEvent,
   Chip,
   IconButton,
-  InputAdornment
+  InputAdornment,
+  Tooltip,
+  alpha,
+  useTheme,
 } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
 import VisibilityIcon from '@mui/icons-material/Visibility';
 import EditIcon from '@mui/icons-material/Edit';
-import DescriptionIcon from '@mui/icons-material/Description';
 import SearchIcon from '@mui/icons-material/Search';
+import PetsIcon from '@mui/icons-material/Pets';
+import FilterListIcon from '@mui/icons-material/FilterList';
 import { useNavigate } from 'react-router-dom';
 import { getPatients } from '../services/patients';
 import { Patient } from '../types';
@@ -36,6 +40,7 @@ export const PatientsList: React.FC = () => {
   const [selectedSpecies, setSelectedSpecies] = useState<string>('');
   const [selectedStatus, setSelectedStatus] = useState<string>('');
   const navigate = useNavigate();
+  const theme = useTheme();
 
   useEffect(() => {
     const fetchPatients = async () => {
@@ -55,83 +60,89 @@ export const PatientsList: React.FC = () => {
     fetchPatients();
   }, []);
 
-  // Filter patients based on search and filters
-  const filteredPatients = patients.filter(patient => {
-    const matchesSearch = searchQuery === '' || 
-      patient.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
-      patient.clientId.toLowerCase().includes(searchQuery.toLowerCase());
-    
+  const filteredPatients = patients.filter((patient) => {
+    const matchesSearch =
+      searchQuery === '' ||
+      patient.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      patient.clientId.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (patient.ownerName || '').toLowerCase().includes(searchQuery.toLowerCase());
+
     const matchesSpecies = selectedSpecies === '' || patient.species === selectedSpecies;
     const matchesStatus = selectedStatus === '' || patient.status === selectedStatus;
-    
+
     return matchesSearch && matchesSpecies && matchesStatus;
   });
 
-  // Extract unique species for the dropdown
-  const speciesList = [...new Set(patients.map(patient => patient.species))];
+  const speciesList = [...new Set(patients.map((patient) => patient.species))].sort();
 
-  const handleSpeciesChange = (event: SelectChangeEvent) => {
-    setSelectedSpecies(event.target.value);
-  };
-
-  const handleStatusChange = (event: SelectChangeEvent) => {
-    setSelectedStatus(event.target.value);
-  };
-
-  const handleSearchChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    setSearchQuery(event.target.value);
-  };
-
-  const handleAddPatient = () => {
-    navigate('/patients/new');
-  };
-
-  const handleViewPatient = (patientId: string) => {
-    navigate(`/patients/${patientId}`);
-  };
+  const handleSpeciesChange = (event: SelectChangeEvent) => setSelectedSpecies(event.target.value);
+  const handleStatusChange = (event: SelectChangeEvent) => setSelectedStatus(event.target.value);
+  const handleSearchChange = (event: React.ChangeEvent<HTMLInputElement>) => setSearchQuery(event.target.value);
 
   return (
     <Box>
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-        <Typography variant="h4" component="h1">
-          Patients
-        </Typography>
-        <Button 
-          variant="contained" 
+      {/* Page Header */}
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 3 }}>
+        <Box>
+          <Typography variant="h4" component="h1" sx={{ mb: 0.5 }}>
+            Patients
+          </Typography>
+          <Typography variant="body2" color="text.secondary">
+            {loading ? 'Loading...' : `${filteredPatients.length} of ${patients.length} patients`}
+          </Typography>
+        </Box>
+        <Button
+          variant="contained"
           startIcon={<AddIcon />}
-          onClick={handleAddPatient}
+          onClick={() => navigate('/patients/new')}
+          sx={{ flexShrink: 0 }}
         >
-          Add Patient
+          New Patient
         </Button>
       </Box>
-      
-      <Box sx={{ mb: 3, display: 'flex', gap: 2, flexWrap: 'wrap' }}>
+
+      {/* Filters */}
+      <Paper
+        elevation={0}
+        sx={{
+          p: 2,
+          mb: 3,
+          border: '1px solid',
+          borderColor: 'divider',
+          borderRadius: 2,
+          display: 'flex',
+          gap: 2,
+          flexWrap: 'wrap',
+          alignItems: 'center',
+        }}
+      >
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mr: 0.5 }}>
+          <FilterListIcon fontSize="small" sx={{ color: 'text.secondary' }} />
+          <Typography variant="caption" color="text.secondary" fontWeight={600}>
+            FILTER
+          </Typography>
+        </Box>
         <TextField
-          placeholder="Search"
+          placeholder="Search by name, ID, or owner..."
           value={searchQuery}
           onChange={handleSearchChange}
           variant="outlined"
-          sx={{ flexGrow: 1, minWidth: '200px' }}
+          sx={{ flexGrow: 1, minWidth: 220 }}
           InputProps={{
             startAdornment: (
               <InputAdornment position="start">
-                <SearchIcon />
+                <SearchIcon fontSize="small" sx={{ color: 'text.secondary' }} />
               </InputAdornment>
             ),
           }}
         />
-        
+
         <Select
           value={selectedSpecies}
           onChange={handleSpeciesChange}
           displayEmpty
-          sx={{ minWidth: '150px' }}
-          renderValue={(selected) => {
-            if (selected === '') {
-              return <em>Species</em>;
-            }
-            return selected;
-          }}
+          sx={{ minWidth: 140 }}
+          renderValue={(selected) => (selected === '' ? <em style={{ color: '#9e9e9e' }}>All Species</em> : selected)}
         >
           <MenuItem value="">
             <em>All Species</em>
@@ -142,18 +153,13 @@ export const PatientsList: React.FC = () => {
             </MenuItem>
           ))}
         </Select>
-        
+
         <Select
           value={selectedStatus}
           onChange={handleStatusChange}
           displayEmpty
-          sx={{ minWidth: '120px' }}
-          renderValue={(selected) => {
-            if (selected === '') {
-              return <em>Status</em>;
-            }
-            return selected;
-          }}
+          sx={{ minWidth: 130 }}
+          renderValue={(selected) => (selected === '' ? <em style={{ color: '#9e9e9e' }}>All Statuses</em> : selected)}
         >
           <MenuItem value="">
             <em>All Statuses</em>
@@ -161,84 +167,179 @@ export const PatientsList: React.FC = () => {
           <MenuItem value="Active">Active</MenuItem>
           <MenuItem value="Inactive">Inactive</MenuItem>
         </Select>
-      </Box>
-      
+      </Paper>
+
+      {/* Content */}
       {loading ? (
-        <Box sx={{ display: 'flex', justifyContent: 'center', mt: 4 }}>
+        <Box sx={{ display: 'flex', justifyContent: 'center', mt: 8 }}>
           <CircularProgress />
         </Box>
       ) : error ? (
-        <Typography color="error" sx={{ mt: 2 }}>
-          {error}
-        </Typography>
+        <Paper
+          elevation={0}
+          sx={{ p: 4, textAlign: 'center', border: '1px solid', borderColor: 'error.light', borderRadius: 2 }}
+        >
+          <Typography color="error">{error}</Typography>
+        </Paper>
+      ) : filteredPatients.length === 0 ? (
+        <Paper
+          elevation={0}
+          sx={{
+            p: 6,
+            textAlign: 'center',
+            border: '1px dashed',
+            borderColor: 'divider',
+            borderRadius: 2,
+            backgroundColor: 'background.default',
+          }}
+        >
+          <PetsIcon sx={{ fontSize: 48, color: 'text.secondary', opacity: 0.4, mb: 2 }} />
+          <Typography variant="h6" color="text.secondary" gutterBottom>
+            No patients found
+          </Typography>
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
+            {searchQuery || selectedSpecies || selectedStatus
+              ? 'Try adjusting your search filters'
+              : 'Get started by adding your first patient'}
+          </Typography>
+          {!searchQuery && !selectedSpecies && !selectedStatus && (
+            <Button variant="contained" startIcon={<AddIcon />} onClick={() => navigate('/patients/new')}>
+              Add First Patient
+            </Button>
+          )}
+        </Paper>
       ) : (
-        <TableContainer component={Paper}>
+        <TableContainer
+          component={Paper}
+          elevation={0}
+          sx={{ border: '1px solid', borderColor: 'divider', borderRadius: 2, overflow: 'hidden' }}
+        >
           <Table>
             <TableHead>
               <TableRow>
-                <TableCell>Name</TableCell>
+                <TableCell>Patient</TableCell>
                 <TableCell>Client ID</TableCell>
-                <TableCell>Species</TableCell>
-                <TableCell>Breed</TableCell>
+                <TableCell>Species / Breed</TableCell>
                 <TableCell>Age</TableCell>
                 <TableCell>Weight</TableCell>
                 <TableCell>Status</TableCell>
-                <TableCell>Actions</TableCell>
+                <TableCell align="right">Actions</TableCell>
               </TableRow>
             </TableHead>
             <TableBody>
-              {filteredPatients.map((patient) => (
-                <TableRow key={patient.id} hover>
-                  <TableCell>{patient.name}</TableCell>
-                  <TableCell>{patient.clientId}</TableCell>
-                  <TableCell>{patient.species}</TableCell>
-                  <TableCell>{patient.breed}</TableCell>
-                  <TableCell>{patient.age}</TableCell>
-                  <TableCell>{patient.weight}</TableCell>
+              {filteredPatients.map((patient, index) => (
+                <TableRow
+                  key={patient.id}
+                  hover
+                  sx={{
+                    cursor: 'pointer',
+                    backgroundColor: index % 2 === 0 ? '#fff' : alpha(theme.palette.primary.main, 0.02),
+                    '&:hover': {
+                      backgroundColor: alpha(theme.palette.primary.main, 0.05),
+                    },
+                  }}
+                  onClick={() => navigate(`/patients/${patient.id}`)}
+                >
                   <TableCell>
-                    <Chip 
-                      label={patient.status} 
-                      color={patient.status === 'Active' ? 'success' : 'default'}
-                    />
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                      <Box
+                        sx={{
+                          width: 34,
+                          height: 34,
+                          borderRadius: 2,
+                          backgroundColor: alpha(theme.palette.primary.main, 0.1),
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          flexShrink: 0,
+                        }}
+                      >
+                        <PetsIcon sx={{ fontSize: 18, color: 'primary.main' }} />
+                      </Box>
+                      <Box>
+                        <Typography variant="body2" fontWeight={600}>
+                          {patient.name}
+                        </Typography>
+                        {patient.ownerName && (
+                          <Typography variant="caption" color="text.secondary">
+                            {patient.ownerName}
+                          </Typography>
+                        )}
+                      </Box>
+                    </Box>
                   </TableCell>
                   <TableCell>
-                    <Box sx={{ display: 'flex' }}>
-                      <IconButton 
-                        color="primary" 
-                        onClick={() => handleViewPatient(patient.id)}
-                        title="View Patient"
-                      >
-                        <VisibilityIcon />
-                      </IconButton>
-                      <IconButton 
-                        color="secondary"
-                        onClick={() => navigate(`/patients/${patient.id}/edit`)}
-                        title="Edit Patient"
-                      >
-                        <EditIcon />
-                      </IconButton>
-                      <IconButton 
-                        color="info"
-                        onClick={() => handleViewPatient(patient.id)}
-                        title="Patient Records"
-                      >
-                        <DescriptionIcon />
-                      </IconButton>
+                    <Typography variant="body2" color="text.secondary" fontFamily="monospace">
+                      {patient.clientId}
+                    </Typography>
+                  </TableCell>
+                  <TableCell>
+                    <Typography variant="body2">{patient.species}</Typography>
+                    {patient.breed && (
+                      <Typography variant="caption" color="text.secondary">
+                        {patient.breed}
+                      </Typography>
+                    )}
+                  </TableCell>
+                  <TableCell>
+                    <Typography variant="body2">{patient.age || '—'}</Typography>
+                  </TableCell>
+                  <TableCell>
+                    <Typography variant="body2">
+                      {patient.weight ? `${patient.weight} kg` : '—'}
+                    </Typography>
+                  </TableCell>
+                  <TableCell>
+                    <Chip
+                      label={patient.status}
+                      size="small"
+                      color={patient.status === 'Active' ? 'success' : 'default'}
+                      variant={patient.status === 'Active' ? 'filled' : 'outlined'}
+                      sx={{ minWidth: 70 }}
+                    />
+                  </TableCell>
+                  <TableCell align="right" onClick={(e) => e.stopPropagation()}>
+                    <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 0.5 }}>
+                      <Tooltip title="View Patient Record">
+                        <IconButton
+                          size="small"
+                          color="primary"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            navigate(`/patients/${patient.id}`);
+                          }}
+                          sx={{
+                            backgroundColor: alpha(theme.palette.primary.main, 0.08),
+                            '&:hover': { backgroundColor: alpha(theme.palette.primary.main, 0.16) },
+                          }}
+                        >
+                          <VisibilityIcon fontSize="small" />
+                        </IconButton>
+                      </Tooltip>
+                      <Tooltip title="Edit Patient">
+                        <IconButton
+                          size="small"
+                          color="secondary"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            navigate(`/patients/${patient.id}/edit`);
+                          }}
+                          sx={{
+                            backgroundColor: alpha(theme.palette.secondary.main, 0.08),
+                            '&:hover': { backgroundColor: alpha(theme.palette.secondary.main, 0.16) },
+                          }}
+                        >
+                          <EditIcon fontSize="small" />
+                        </IconButton>
+                      </Tooltip>
                     </Box>
                   </TableCell>
                 </TableRow>
               ))}
-              {filteredPatients.length === 0 && (
-                <TableRow>
-                  <TableCell colSpan={8} align="center">
-                    No patients found
-                  </TableCell>
-                </TableRow>
-              )}
             </TableBody>
           </Table>
         </TableContainer>
       )}
     </Box>
   );
-}; 
+};

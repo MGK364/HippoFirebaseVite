@@ -21,7 +21,8 @@ const formatUser = (user: FirebaseUser | null): User | null => {
 };
 
 // For development purposes, we'll use a persistent user
-const DEVELOPMENT_MODE = false;
+// When true, all auth calls use this fake user and never hit Firebase.
+const DEVELOPMENT_MODE = true;
 const DEV_USER: User = {
   uid: 'dev-user-123',
   email: 'dev@vetclinic.com',

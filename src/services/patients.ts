@@ -1,20 +1,18 @@
-import { 
-  collection, 
-  getDocs, 
-  getDoc, 
-  doc, 
-  addDoc, 
-  updateDoc, 
-  deleteDoc, 
-  query, 
-  where,
+import {
+  collection,
+  getDocs,
+  getDoc,
+  doc,
+  addDoc,
+  updateDoc,
+  deleteDoc,
   Timestamp,
   serverTimestamp,
   arrayUnion,
   setDoc
 } from 'firebase/firestore';
 import { db } from './firebase';
-import { Patient, VitalSign, Medication, PatientHistory, AnesthesiaBolus, AnesthesiaCRI, MedicalSummary, AnesthesiaPlan, Event } from '../types';
+import { Patient, VitalSign, VitalSignEdit, Medication, PatientHistory, AnesthesiaBolus, AnesthesiaCRI, MedicalSummary, AnesthesiaPlan, Event } from '../types';
 
 // Collection references
 const patientsCollection = 'patients';
@@ -24,7 +22,6 @@ const getHistoryCollection = (patientId: string) => `patients/${patientId}/histo
 const getEventsCollection = (patientId: string) => `patients/${patientId}/events`;
 
 // Anesthesia medications collection paths
-const getAnesthesiaMedicationsPath = (patientId: string) => `patients/${patientId}/anesthesiaMedications`;
 const getAnesthesiaBolusesRef = (patientId: string) => {
   // Create reference to the boluses subcollection directly
   // This fixes the "odd number of segments" error by using the correct path structure
@@ -95,7 +92,34 @@ const MOCK_PATIENTS: Patient[] = [
 ];
 
 // Development mode flag
-const DEVELOPMENT_MODE = false;
+// When true, all patient-/vitals-/anesthesia-related calls use mock data
+// and never touch Firestore. This lets the frontend run without a backend.
+const DEVELOPMENT_MODE = true;
+
+// ─── Dev-mode in-memory cache ──────────────────────────────────────────────
+// Stores user-added records so they survive re-fetches within the same session.
+// Keyed by patientId. Each array accumulates items added via add*() calls.
+// The corresponding get*() merges these with the freshly-generated mock data.
+const devCache = {
+  vitalSigns:  new Map<string, VitalSign[]>(),
+  medications: new Map<string, Medication[]>(),
+  boluses:     new Map<string, AnesthesiaBolus[]>(),
+  cris:        new Map<string, AnesthesiaCRI[]>(),
+  events:      new Map<string, Event[]>(),
+  // Track deleted event IDs so we don't re-surface mock ones
+  deletedEvents: new Map<string, Set<string>>(),
+};
+
+/** Append an item to a dev-cache list, creating the array if needed. */
+function cacheAppend<T>(map: Map<string, T[]>, patientId: string, item: T): void {
+  const list = map.get(patientId);
+  if (list) { list.push(item); } else { map.set(patientId, [item]); }
+}
+
+/** Get cached items for a patient (or empty array). */
+function cacheGet<T>(map: Map<string, T[]>, patientId: string): T[] {
+  return map.get(patientId) ?? [];
+}
 
 // Get all patients
 export const getPatients = async (): Promise<Patient[]> => {
@@ -217,8 +241,9 @@ const createMockVitalSigns = (patientId: string): VitalSign[] => {
     const baseTemp = 38 + (Math.random() * 0.5); // Temp around 38-38.5
     const baseO2 = 95 + Math.floor(Math.random() * 5); // O2 sat around 95-100
     const baseEtCO2 = 35 + Math.floor(Math.random() * 10); // ETCO2 around 35-45
-    const basePain = 1 + Math.floor(Math.random() * 4); // Pain score 1-5
-    
+    const baseO2Flow = 1.0 + Math.round(Math.random() * 10) / 10; // O2 flow 1.0-2.0 L/min
+    const baseVapPct = 1.5 + Math.round(Math.random() * 10) / 10; // Vaporizer 1.5-2.5%
+
     vitalSigns.push({
       id: `vs-${patientId}-${i+1}`,
       timestamp,
@@ -232,8 +257,12 @@ const createMockVitalSigns = (patientId: string): VitalSign[] => {
       },
       oxygenSaturation: baseO2,
       etCO2: baseEtCO2,
-      painScore: basePain,
-      notes: i === 0 ? 'Initial assessment' : ''
+      notes: i === 0 ? 'Initial assessment' : '',
+      o2FlowRate: baseO2Flow,
+      vaporizerAgent: 'Iso' as const,
+      vaporizerPercent: baseVapPct,
+      createdAt: timestamp,        // same as clinical time → always >30 min old → locked
+      createdBy: 'Mock System',
     });
   }
   
@@ -243,7 +272,12 @@ const createMockVitalSigns = (patientId: string): VitalSign[] => {
 // Get vital signs for a patient
 export const getVitalSigns = async (patientId: string): Promise<VitalSign[]> => {
   if (DEVELOPMENT_MODE) {
-    return createMockVitalSigns(patientId);
+    const mock = createMockVitalSigns(patientId);
+    const cached = cacheGet(devCache.vitalSigns, patientId);
+    // Cached entries override mock entries with same ID (for edit/void persistence)
+    const cachedIds = new Set(cached.map(v => v.id));
+    const mergedMock = mock.filter(m => !cachedIds.has(m.id));
+    return [...mergedMock, ...cached].sort((a, b) => a.timestamp.getTime() - b.timestamp.getTime());
   }
   
   try {
@@ -262,9 +296,14 @@ export const getVitalSigns = async (patientId: string): Promise<VitalSign[]> => 
 // Add a vital sign record
 export const addVitalSign = async (patientId: string, vitalSign: Omit<VitalSign, 'id'>): Promise<VitalSign> => {
   if (DEVELOPMENT_MODE) {
-    const mockVitalSigns = createMockVitalSigns(patientId);
-    const newId = `vs-${patientId}-${mockVitalSigns.length}`;
-    const newVitalSign = { ...vitalSign, id: newId };
+    const newId = `vs-${patientId}-user-${Date.now()}`;
+    const newVitalSign: VitalSign = {
+      ...vitalSign,
+      id: newId,
+      createdAt: new Date(),
+      createdBy: vitalSign.createdBy || 'unknown',
+    };
+    cacheAppend(devCache.vitalSigns, patientId, newVitalSign);
     return newVitalSign;
   }
   
@@ -277,6 +316,142 @@ export const addVitalSign = async (patientId: string, vitalSign: Omit<VitalSign,
     return { id: docRef.id, ...vitalSign };
   } catch (error) {
     console.error('Error adding vital sign:', error);
+    throw error;
+  }
+};
+
+const EDIT_WINDOW_MS = 30 * 60 * 1000; // 30 minutes
+
+// Update an existing vital sign (only within 30-minute edit window)
+export const updateVitalSign = async (
+  patientId: string,
+  vitalSignId: string,
+  updates: Partial<VitalSign>,
+  editMeta: { editedBy: string; editReason: string }
+): Promise<void> => {
+  if (DEVELOPMENT_MODE) {
+    // Find in cache — may need to materialize from mock
+    let cached = cacheGet(devCache.vitalSigns, patientId);
+    let vs = cached.find(v => v.id === vitalSignId);
+
+    if (!vs) {
+      // Materialize mock entry into cache
+      const allMock = createMockVitalSigns(patientId);
+      const mockVs = allMock.find(v => v.id === vitalSignId);
+      if (!mockVs) throw new Error(`Vital sign ${vitalSignId} not found`);
+      cacheAppend(devCache.vitalSigns, patientId, { ...mockVs });
+      cached = cacheGet(devCache.vitalSigns, patientId);
+      vs = cached.find(v => v.id === vitalSignId)!;
+    }
+
+    // Enforce 30-minute window
+    const createdAt = vs.createdAt instanceof Date ? vs.createdAt : new Date(vs.createdAt ?? 0);
+    if (Date.now() - createdAt.getTime() > EDIT_WINDOW_MS) {
+      throw new Error('Cannot edit: record is older than 30 minutes. Use void instead.');
+    }
+
+    // Build previous-values snapshot (only fields that actually changed)
+    const previousValues: Record<string, any> = {};
+    const skipKeys = new Set(['id', 'createdAt', 'createdBy', 'editHistory', 'voidedAt', 'voidedBy', 'voidReason']);
+    for (const key of Object.keys(updates)) {
+      if (skipKeys.has(key)) continue;
+      if (JSON.stringify((vs as any)[key]) !== JSON.stringify((updates as any)[key])) {
+        previousValues[key] = (vs as any)[key];
+      }
+    }
+
+    const editEntry: VitalSignEdit = {
+      editedAt: new Date(),
+      editedBy: editMeta.editedBy,
+      editReason: editMeta.editReason,
+      previousValues,
+    };
+
+    // Apply updates + append edit history
+    Object.assign(vs, updates);
+    vs.editHistory = [...(vs.editHistory || []), editEntry];
+    return;
+  }
+
+  // Firestore path
+  try {
+    const docRef = doc(db, getVitalSignsCollection(patientId), vitalSignId);
+    await updateDoc(docRef, { ...updates, updatedAt: serverTimestamp() });
+  } catch (error) {
+    console.error('Error updating vital sign:', error);
+    throw error;
+  }
+};
+
+// Hard-delete a vital sign (only within 30-minute window)
+export const deleteVitalSign = async (
+  patientId: string,
+  vitalSignId: string,
+  deleteMeta: { deletedBy: string; deleteReason: string }
+): Promise<void> => {
+  if (DEVELOPMENT_MODE) {
+    const cached = devCache.vitalSigns.get(patientId);
+    if (!cached) return;
+    const idx = cached.findIndex(v => v.id === vitalSignId);
+    if (idx === -1) return;
+    const vs = cached[idx];
+
+    // Enforce 30-minute window
+    const createdAt = vs.createdAt instanceof Date ? vs.createdAt : new Date(vs.createdAt ?? 0);
+    if (Date.now() - createdAt.getTime() > EDIT_WINDOW_MS) {
+      throw new Error('Cannot delete: record is older than 30 minutes. Use void instead.');
+    }
+
+    cached.splice(idx, 1);
+    console.log(`[AUDIT] Hard-deleted vital sign ${vitalSignId} by ${deleteMeta.deletedBy}: ${deleteMeta.deleteReason}`);
+    return;
+  }
+
+  // Firestore path
+  try {
+    await deleteDoc(doc(db, getVitalSignsCollection(patientId), vitalSignId));
+  } catch (error) {
+    console.error('Error deleting vital sign:', error);
+    throw error;
+  }
+};
+
+// Void (soft-delete) a vital sign — available at any age
+export const voidVitalSign = async (
+  patientId: string,
+  vitalSignId: string,
+  voidMeta: { voidedBy: string; voidReason: string }
+): Promise<void> => {
+  if (DEVELOPMENT_MODE) {
+    let cached = cacheGet(devCache.vitalSigns, patientId);
+    let vs = cached.find(v => v.id === vitalSignId);
+
+    if (!vs) {
+      // Materialize mock entry into cache so the void persists
+      const allMock = createMockVitalSigns(patientId);
+      const mockVs = allMock.find(v => v.id === vitalSignId);
+      if (!mockVs) throw new Error(`Vital sign ${vitalSignId} not found`);
+      cacheAppend(devCache.vitalSigns, patientId, { ...mockVs });
+      cached = cacheGet(devCache.vitalSigns, patientId);
+      vs = cached.find(v => v.id === vitalSignId)!;
+    }
+
+    vs.voidedAt = new Date();
+    vs.voidedBy = voidMeta.voidedBy;
+    vs.voidReason = voidMeta.voidReason;
+    return;
+  }
+
+  // Firestore path
+  try {
+    const docRef = doc(db, getVitalSignsCollection(patientId), vitalSignId);
+    await updateDoc(docRef, {
+      voidedAt: serverTimestamp(),
+      voidedBy: voidMeta.voidedBy,
+      voidReason: voidMeta.voidReason,
+    });
+  } catch (error) {
+    console.error('Error voiding vital sign:', error);
     throw error;
   }
 };
@@ -334,7 +509,9 @@ const createMockMedications = (patientId: string): Medication[] => {
 // Get medications for a patient
 export const getMedications = async (patientId: string): Promise<Medication[]> => {
   if (DEVELOPMENT_MODE) {
-    return createMockMedications(patientId);
+    const mock = createMockMedications(patientId);
+    const cached = cacheGet(devCache.medications, patientId);
+    return [...mock, ...cached].sort((a, b) => a.timestamp.getTime() - b.timestamp.getTime());
   }
   
   try {
@@ -353,9 +530,9 @@ export const getMedications = async (patientId: string): Promise<Medication[]> =
 // Add a medication
 export const addMedication = async (patientId: string, medication: Omit<Medication, 'id'>): Promise<Medication> => {
   if (DEVELOPMENT_MODE) {
-    const mockMedications = createMockMedications(patientId);
-    const newId = `med-${patientId}-${mockMedications.length + 1}`;
-    const newMedication = { ...medication, id: newId };
+    const newId = `med-${patientId}-user-${Date.now()}`;
+    const newMedication: Medication = { ...medication, id: newId };
+    cacheAppend(devCache.medications, patientId, newMedication);
     return newMedication;
   }
   
@@ -375,6 +552,10 @@ export const addMedication = async (patientId: string, medication: Omit<Medicati
 // Update a medication
 export const updateMedication = async (patientId: string, medicationId: string, data: Partial<Medication>): Promise<void> => {
   if (DEVELOPMENT_MODE) {
+    // Update cached medication if it exists
+    const cached = cacheGet(devCache.medications, patientId);
+    const med = cached.find(m => m.id === medicationId);
+    if (med) { Object.assign(med, data); }
     return;
   }
   
@@ -468,7 +649,9 @@ export const addHistoryEntry = async (patientId: string, history: Omit<PatientHi
 // Get all anesthesia boluses for a patient
 export const getAnesthesiaBoluses = async (patientId: string): Promise<AnesthesiaBolus[]> => {
   if (DEVELOPMENT_MODE) {
-    return createMockAnesthesiaBoluses(patientId);
+    const mock = createMockAnesthesiaBoluses(patientId);
+    const cached = cacheGet(devCache.boluses, patientId);
+    return [...mock, ...cached].sort((a, b) => a.timestamp.getTime() - b.timestamp.getTime());
   }
   
   try {
@@ -492,7 +675,9 @@ export const getAnesthesiaBoluses = async (patientId: string): Promise<Anesthesi
 // Get all anesthesia CRIs for a patient
 export const getAnesthesiaCRIs = async (patientId: string): Promise<AnesthesiaCRI[]> => {
   if (DEVELOPMENT_MODE) {
-    return createMockAnesthesiaCRIs(patientId);
+    const mock = createMockAnesthesiaCRIs(patientId);
+    const cached = cacheGet(devCache.cris, patientId);
+    return [...mock, ...cached].sort((a, b) => a.startTime.getTime() - b.startTime.getTime());
   }
   
   try {
@@ -700,8 +885,9 @@ const createMockAnesthesiaCRIs = (patientId: string): AnesthesiaCRI[] => {
 // Add a new anesthesia bolus medication
 export const addAnesthesiaBolus = async (patientId: string, bolus: Omit<AnesthesiaBolus, 'id'>): Promise<string> => {
   if (DEVELOPMENT_MODE) {
-    const mockBoluses = createMockAnesthesiaBoluses(patientId);
-    const newId = `bolus-${patientId}-${mockBoluses.length + 1}`;
+    const newId = `bolus-${patientId}-user-${Date.now()}`;
+    const newBolus: AnesthesiaBolus = { ...bolus, id: newId };
+    cacheAppend(devCache.boluses, patientId, newBolus);
     return newId;
   }
   
@@ -731,8 +917,13 @@ export const addAnesthesiaBolus = async (patientId: string, bolus: Omit<Anesthes
 // Add a new anesthesia CRI medication
 export const addAnesthesiaCRI = async (patientId: string, cri: Omit<AnesthesiaCRI, 'id'>): Promise<string> => {
   if (DEVELOPMENT_MODE) {
-    const mockCRIs = createMockAnesthesiaCRIs(patientId);
-    const newId = `cri-${patientId}-${mockCRIs.length + 1}`;
+    const newId = `cri-${patientId}-user-${Date.now()}`;
+    const newCRI: AnesthesiaCRI = {
+      ...cri,
+      id: newId,
+      rateHistory: [{ timestamp: cri.startTime, rate: cri.rate }],
+    };
+    cacheAppend(devCache.cris, patientId, newCRI);
     return newId;
   }
   
@@ -743,14 +934,26 @@ export const addAnesthesiaCRI = async (patientId: string, cri: Omit<AnesthesiaCR
     // Log collection path for debugging
     console.log('CRIs collection path:', crisRef.path);
     
-    const docRef = await addDoc(crisRef, {
-      ...cri,
+    // Create a new object without undefined values
+    const criData: any = {
+      name: cri.name,
+      rate: cri.rate,
+      unit: cri.unit,
+      startTime: cri.startTime,
       rateHistory: [{
         timestamp: cri.startTime,
         rate: cri.rate
       }],
+      administeredBy: cri.administeredBy,
       createdAt: serverTimestamp()
-    });
+    };
+    
+    // Only add endTime if it's defined
+    if (cri.endTime) {
+      criData.endTime = cri.endTime;
+    }
+    
+    const docRef = await addDoc(crisRef, criData);
     
     console.log('Successfully added CRI with ID:', docRef.id);
     return docRef.id;
@@ -766,6 +969,13 @@ export const addAnesthesiaCRI = async (patientId: string, cri: Omit<AnesthesiaCR
 // Update the rate of a CRI
 export const updateCRIRate = async (patientId: string, criId: string, newRate: number): Promise<void> => {
   if (DEVELOPMENT_MODE) {
+    // Update cached CRI if it exists
+    const cached = cacheGet(devCache.cris, patientId);
+    const cri = cached.find(c => c.id === criId);
+    if (cri) {
+      cri.rate = newRate;
+      cri.rateHistory = [...(cri.rateHistory || []), { timestamp: new Date(), rate: newRate }];
+    }
     console.log(`Development mode: Updated CRI rate for ${criId} to ${newRate}`);
     return;
   }
@@ -810,6 +1020,12 @@ export const updateCRIRate = async (patientId: string, criId: string, newRate: n
 // Stop a CRI (set end time)
 export const stopCRI = async (patientId: string, criId: string): Promise<void> => {
   if (DEVELOPMENT_MODE) {
+    // Update cached CRI if it exists
+    const cached = cacheGet(devCache.cris, patientId);
+    const cri = cached.find(c => c.id === criId);
+    if (cri) {
+      cri.endTime = new Date();
+    }
     console.log(`Development mode: Stopped CRI ${criId}`);
     return;
   }
@@ -1124,8 +1340,10 @@ const createMockAnesthesiaPlan = (patientId: string): AnesthesiaPlan => {
 // Get events for a patient
 export const getEvents = async (patientId: string): Promise<Event[]> => {
   if (DEVELOPMENT_MODE) {
-    // Return mock events in development mode
-    return [];
+    // Return cached events (no mock events generated — users add them via Log Event)
+    const cached = cacheGet(devCache.events, patientId);
+    const deleted = devCache.deletedEvents.get(patientId) ?? new Set();
+    return cached.filter(e => !deleted.has(e.id)).sort((a, b) => a.timestamp.getTime() - b.timestamp.getTime());
   }
   
   try {
@@ -1153,7 +1371,9 @@ export const getEvents = async (patientId: string): Promise<Event[]> => {
 export const addEvent = async (patientId: string, event: Omit<Event, 'id'>): Promise<Event> => {
   if (DEVELOPMENT_MODE) {
     const mockId = `event-${patientId}-${Date.now()}`;
-    return { ...event, id: mockId };
+    const newEvent: Event = { ...event, id: mockId };
+    cacheAppend(devCache.events, patientId, newEvent);
+    return newEvent;
   }
   
   try {
@@ -1172,6 +1392,16 @@ export const addEvent = async (patientId: string, event: Omit<Event, 'id'>): Pro
 // Delete an event
 export const deleteEvent = async (patientId: string, eventId: string): Promise<void> => {
   if (DEVELOPMENT_MODE) {
+    // Track deletion so the event doesn't reappear on next fetch
+    if (!devCache.deletedEvents.has(patientId)) {
+      devCache.deletedEvents.set(patientId, new Set());
+    }
+    devCache.deletedEvents.get(patientId)!.add(eventId);
+    // Also remove from cached events array
+    const cached = devCache.events.get(patientId);
+    if (cached) {
+      devCache.events.set(patientId, cached.filter(e => e.id !== eventId));
+    }
     return;
   }
   

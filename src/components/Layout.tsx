@@ -1,18 +1,21 @@
 import React, { useState } from 'react';
-import { 
-  AppBar, 
-  Toolbar, 
-  Drawer, 
-  IconButton, 
-  List, 
-  ListItem, 
-  ListItemButton, 
-  ListItemIcon, 
-  ListItemText, 
+import {
+  AppBar,
+  Toolbar,
+  Drawer,
+  IconButton,
+  List,
+  ListItem,
+  ListItemButton,
+  ListItemIcon,
+  ListItemText,
   Typography,
   Divider,
   useMediaQuery,
-  useTheme
+  useTheme,
+  Box,
+  Avatar,
+  Tooltip,
 } from '@mui/material';
 import MenuIcon from '@mui/icons-material/Menu';
 import PetsIcon from '@mui/icons-material/Pets';
@@ -20,6 +23,7 @@ import HomeIcon from '@mui/icons-material/Home';
 import LogoutIcon from '@mui/icons-material/Logout';
 import AdminPanelSettingsIcon from '@mui/icons-material/AdminPanelSettings';
 import MedicationIcon from '@mui/icons-material/Medication';
+import MonitorHeartIcon from '@mui/icons-material/MonitorHeart';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 
@@ -58,52 +62,213 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
   };
 
   const menuItems = [
-    { text: 'Dashboard', icon: <HomeIcon />, path: '/' },
-    { text: 'Patients', icon: <PetsIcon />, path: '/patients' },
-    { text: 'Formulary', icon: <MedicationIcon />, path: '/formulary' },
-    { text: 'Admin', icon: <AdminPanelSettingsIcon />, path: '/admin' }
+    { text: 'Dashboard', icon: <HomeIcon fontSize="small" />, path: '/' },
+    { text: 'Patients', icon: <PetsIcon fontSize="small" />, path: '/patients' },
+    { text: 'Formulary', icon: <MedicationIcon fontSize="small" />, path: '/formulary' },
+    { text: 'Admin', icon: <AdminPanelSettingsIcon fontSize="small" />, path: '/admin' },
   ];
 
+  // Get user initials for avatar
+  const getUserInitials = () => {
+    if (!currentUser) return '?';
+    if (currentUser.displayName) {
+      return currentUser.displayName
+        .split(' ')
+        .map((n: string) => n[0])
+        .join('')
+        .toUpperCase()
+        .slice(0, 2);
+    }
+    return currentUser.email?.[0]?.toUpperCase() || '?';
+  };
+
+  // Check if a path is active
+  const isActive = (path: string) => {
+    if (path === '/') return location.pathname === '/';
+    return location.pathname.startsWith(path);
+  };
+
   const drawer = (
-    <div>
-      <Toolbar>
-        <Typography variant="h6" noWrap component="div">
-          Vet EMR
+    <Box sx={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+      {/* Logo / Brand */}
+      <Box
+        sx={{
+          px: 2,
+          py: 2,
+          display: 'flex',
+          alignItems: 'center',
+          gap: 1.5,
+          minHeight: 64,
+          background: 'linear-gradient(135deg, #1565C0 0%, #1976D2 100%)',
+        }}
+      >
+        <Box
+          sx={{
+            width: 36,
+            height: 36,
+            borderRadius: 2,
+            backgroundColor: 'rgba(255,255,255,0.2)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            flexShrink: 0,
+          }}
+        >
+          <MonitorHeartIcon sx={{ color: '#fff', fontSize: 22 }} />
+        </Box>
+        <Box>
+          <Typography
+            variant="subtitle1"
+            sx={{ color: '#fff', fontWeight: 700, lineHeight: 1.2, fontSize: '0.95rem' }}
+          >
+            VetAnesthesia
+          </Typography>
+          <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.7)', fontSize: '0.7rem' }}>
+            EMR System
+          </Typography>
+        </Box>
+      </Box>
+
+      {/* Navigation */}
+      <Box sx={{ flex: 1, pt: 1.5, pb: 1 }}>
+        <Typography
+          variant="caption"
+          sx={{
+            px: 2.5,
+            py: 1,
+            display: 'block',
+            color: 'text.secondary',
+            fontWeight: 700,
+            fontSize: '0.65rem',
+            textTransform: 'uppercase',
+            letterSpacing: '0.8px',
+          }}
+        >
+          Navigation
         </Typography>
-      </Toolbar>
+        <List disablePadding>
+          {menuItems.map((item) => {
+            const active = isActive(item.path);
+            return (
+              <ListItem key={item.text} disablePadding sx={{ px: 0.5 }}>
+                <ListItemButton
+                  selected={active}
+                  onClick={() => handleNavigation(item.path)}
+                  sx={{
+                    borderRadius: 2,
+                    mx: 0.5,
+                    py: 1,
+                    px: 1.5,
+                    position: 'relative',
+                    '&.Mui-selected': {
+                      backgroundColor: 'rgba(21, 101, 192, 0.1)',
+                      '&::before': {
+                        content: '""',
+                        position: 'absolute',
+                        left: 0,
+                        top: '50%',
+                        transform: 'translateY(-50%)',
+                        width: 3,
+                        height: '60%',
+                        backgroundColor: 'primary.main',
+                        borderRadius: '0 2px 2px 0',
+                      },
+                    },
+                  }}
+                >
+                  <ListItemIcon
+                    sx={{
+                      minWidth: 36,
+                      color: active ? 'primary.main' : 'text.secondary',
+                    }}
+                  >
+                    {item.icon}
+                  </ListItemIcon>
+                  <ListItemText
+                    primary={item.text}
+                    primaryTypographyProps={{
+                      fontSize: '0.875rem',
+                      fontWeight: active ? 600 : 500,
+                      color: active ? 'primary.main' : 'text.primary',
+                    }}
+                  />
+                </ListItemButton>
+              </ListItem>
+            );
+          })}
+        </List>
+      </Box>
+
+      {/* User section */}
       <Divider />
-      <List>
-        {menuItems.map((item) => (
-          <ListItem key={item.text} disablePadding>
-            <ListItemButton 
-              selected={location.pathname === item.path}
-              onClick={() => handleNavigation(item.path)}
+      <Box sx={{ px: 1.5, py: 1.5 }}>
+        <Box
+          sx={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 1,
+            px: 1,
+            py: 0.75,
+            borderRadius: 2,
+            backgroundColor: 'rgba(0,0,0,0.03)',
+          }}
+        >
+          <Avatar
+            sx={{
+              width: 32,
+              height: 32,
+              fontSize: '0.75rem',
+              fontWeight: 700,
+              backgroundColor: 'primary.main',
+              flexShrink: 0,
+            }}
+          >
+            {getUserInitials()}
+          </Avatar>
+          <Box sx={{ flex: 1, overflow: 'hidden' }}>
+            <Typography
+              variant="caption"
+              sx={{
+                display: 'block',
+                fontWeight: 600,
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                whiteSpace: 'nowrap',
+                color: 'text.primary',
+                fontSize: '0.75rem',
+              }}
             >
-              <ListItemIcon>
-                {item.icon}
-              </ListItemIcon>
-              <ListItemText primary={item.text} />
-            </ListItemButton>
-          </ListItem>
-        ))}
-      </List>
-      <Divider />
-      <List>
-        <ListItem disablePadding>
-          <ListItemButton onClick={handleLogout}>
-            <ListItemIcon>
-              <LogoutIcon />
-            </ListItemIcon>
-            <ListItemText primary="Logout" />
-          </ListItemButton>
-        </ListItem>
-      </List>
-    </div>
+              {currentUser?.displayName || currentUser?.email?.split('@')[0] || 'User'}
+            </Typography>
+            {currentUser?.email && (
+              <Typography
+                variant="caption"
+                sx={{
+                  display: 'block',
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                  whiteSpace: 'nowrap',
+                  color: 'text.secondary',
+                  fontSize: '0.65rem',
+                }}
+              >
+                {currentUser.email}
+              </Typography>
+            )}
+          </Box>
+          <Tooltip title="Logout">
+            <IconButton size="small" onClick={handleLogout} sx={{ color: 'text.secondary', flexShrink: 0 }}>
+              <LogoutIcon fontSize="small" />
+            </IconButton>
+          </Tooltip>
+        </Box>
+      </Box>
+    </Box>
   );
 
   return (
-    <div style={{ display: 'flex', height: '100vh', width: '100vw', overflow: 'hidden' }}>
-      {/* Sidebar */}
+    <Box sx={{ display: 'flex', height: '100vh', width: '100vw', overflow: 'hidden' }}>
+      {/* Mobile Drawer */}
       <Drawer
         variant="temporary"
         open={mobileOpen}
@@ -116,65 +281,74 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
       >
         {drawer}
       </Drawer>
-      
+
+      {/* Permanent Sidebar */}
       <Drawer
         variant="permanent"
         sx={{
           display: { xs: 'none', sm: 'block' },
           width: drawerWidth,
           flexShrink: 0,
-          '& .MuiDrawer-paper': { width: drawerWidth, boxSizing: 'border-box' },
+          '& .MuiDrawer-paper': {
+            width: drawerWidth,
+            boxSizing: 'border-box',
+            border: 'none',
+          },
         }}
         open
       >
         {drawer}
       </Drawer>
-      
-      {/* Main content area including AppBar and content */}
-      <div style={{ 
-        flexGrow: 1, 
-        display: 'flex',
-        flexDirection: 'column',
-        width: '100%', 
-        height: '100vh',
-        overflow: 'hidden'
-      }}>
-        {/* App Bar */}
+
+      {/* Main content area */}
+      <Box
+        sx={{
+          flexGrow: 1,
+          display: 'flex',
+          flexDirection: 'column',
+          width: '100%',
+          height: '100vh',
+          overflow: 'hidden',
+        }}
+      >
+        {/* App Bar (mobile only) */}
         <AppBar
           position="static"
           sx={{
-            width: '100%',
-            height: '48px',
-            zIndex: (theme) => theme.zIndex.drawer + 1,
-            ml: { xs: 0, sm: 0 }
+            display: { xs: 'flex', sm: 'none' },
+            background: 'linear-gradient(135deg, #1565C0 0%, #1976D2 100%)',
+            height: 56,
           }}
         >
-          <Toolbar sx={{ minHeight: '48px !important', p: '0 16px' }}>
+          <Toolbar sx={{ minHeight: '56px !important', px: 2 }}>
             <IconButton
               color="inherit"
               aria-label="open drawer"
               edge="start"
               onClick={handleDrawerToggle}
-              sx={{ mr: 2, display: { sm: 'none' } }}
+              sx={{ mr: 1.5 }}
             >
               <MenuIcon />
             </IconButton>
-            <Typography variant="h6" noWrap component="div" sx={{ fontSize: '1rem' }}>
-              Veterinary Anesthesia Management
+            <MonitorHeartIcon sx={{ mr: 1, fontSize: 20 }} />
+            <Typography variant="subtitle1" noWrap sx={{ fontWeight: 700 }}>
+              VetAnesthesia EMR
             </Typography>
           </Toolbar>
         </AppBar>
-        
+
         {/* Page content */}
-        <div style={{ 
-          flexGrow: 1,
-          padding: '16px 24px',
-          overflow: 'auto',
-          backgroundColor: '#fff'
-        }}>
+        <Box
+          sx={{
+            flexGrow: 1,
+            p: { xs: 2, sm: 3 },
+            overflow: 'auto',
+            backgroundColor: 'background.default',
+          }}
+        >
           {children}
-        </div>
-      </div>
-    </div>
+        </Box>
+      </Box>
+    </Box>
   );
-}; 
+};

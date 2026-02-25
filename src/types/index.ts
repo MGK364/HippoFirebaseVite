@@ -33,8 +33,28 @@ export interface VitalSign {
   };
   oxygenSaturation: number;
   etCO2: number | null;
-  painScore: number | null;
   notes: string;
+  // Anesthesia gas fields (optional — displayed as text rows, not graphed)
+  o2FlowRate?: number | null;                   // O₂ flow in L/min
+  vaporizerAgent?: 'Iso' | 'Sevo' | null;       // inhaled anesthetic agent
+  vaporizerPercent?: number | null;              // vaporizer dial setting %
+
+  // Audit trail fields
+  createdAt?: Date;                              // wall-clock time when recorded (30-min window uses this)
+  createdBy?: string;                            // who created this record
+  voidedAt?: Date | null;                        // non-null = entry is voided (soft-deleted)
+  voidedBy?: string | null;
+  voidReason?: string | null;
+  editHistory?: VitalSignEdit[];                 // snapshots of each edit
+}
+
+// Snapshot of a single edit to a vital sign record
+export interface VitalSignEdit {
+  editedAt: Date;
+  editedBy: string;
+  editReason: string;
+  /** The field values BEFORE this edit (only fields that actually changed) */
+  previousValues: Partial<Omit<VitalSign, 'id' | 'createdAt' | 'createdBy' | 'editHistory' | 'voidedAt' | 'voidedBy' | 'voidReason'>>;
 }
 
 // Medication type
@@ -324,7 +344,7 @@ export interface LocalRegionalItem {
 export interface Event {
   id: string;
   timestamp: Date;
-  type: 'Medication' | 'Procedure' | 'Complication' | 'Note' | 'Other';
+  type: 'Checkpoint' | 'Procedure' | 'Note';
   title: string;
   details: string;
   color?: string; // Optional color for the event marker
