@@ -987,7 +987,7 @@ const AnesthesiaMedicationChart = forwardRef<AnesthesiaMedicationChartRef, Anest
                           <TipRow
                             dot="rgba(255,255,255,0.18)"
                             label="Time"
-                            value={`${format(seg.startTime, 'HH:mm')} → ${seg.isActive ? 'now' : format(seg.endTime, 'HH:mm')}`}
+                            value={`${format(seg.startTime, 'h:mm a')} → ${seg.isActive ? 'now' : format(seg.endTime, 'h:mm a')}`}
                           />
                           <TipRow dot="rgba(255,255,255,0.18)" label="Duration" value={`${segDurationMin} min`} />
                           {/* Footer */}
@@ -1006,7 +1006,7 @@ const AnesthesiaMedicationChart = forwardRef<AnesthesiaMedicationChartRef, Anest
                             }}>
                               Stopped at {format(
                                 cri.endTime instanceof Date ? cri.endTime : new Date(cri.endTime),
-                                'HH:mm'
+                                'h:mm a'
                               )}
                             </div>
                           )}
@@ -1122,7 +1122,7 @@ const AnesthesiaMedicationChart = forwardRef<AnesthesiaMedicationChartRef, Anest
                   </div>
                   {/* Rows */}
                   <TipRow dot={lane.color} label="Dose" value={`${bolus.dose} ${bolus.unit}`} />
-                  <TipRow dot="rgba(255,255,255,0.18)" label="Time" value={format(bolusTime, 'HH:mm')} />
+                  <TipRow dot="rgba(255,255,255,0.18)" label="Time" value={format(bolusTime, 'h:mm a')} />
                   {bolus.administeredBy && (
                     <TipRow dot="rgba(255,255,255,0.18)" label="By" value={bolus.administeredBy} dimValue />
                   )}
