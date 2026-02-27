@@ -9,6 +9,7 @@ import {
   DialogContent,
   DialogActions,
   TextField,
+  InputAdornment,
   FormControl,
   InputLabel,
   Select,
@@ -1514,12 +1515,14 @@ const AnesthesiaMedicationChart = forwardRef<AnesthesiaMedicationChartRef, Anest
           maxWidth="xs"
           fullWidth
         >
-          <DialogTitle>Edit CRI Rate: {editCRIName}</DialogTitle>
+          <DialogTitle>Edit {editCRIName} Rate</DialogTitle>
           <DialogContent>
             <Box sx={{ mb: 2 }}>
-              <Typography variant="body2" sx={{ mb: 1 }}>
-                Current Rate: {currentRate}
-              </Typography>
+              <Box sx={{ display: 'flex', alignItems: 'baseline', gap: 1, mb: 2, px: 0.5 }}>
+                <Typography variant="body2" color="text.secondary">Current rate:</Typography>
+                <Typography variant="body1" fontWeight={700}>{currentRate}</Typography>
+                <Typography variant="body2" color="text.secondary">{currentRateUnit}</Typography>
+              </Box>
 
               <TextField
                 label="New Rate"
@@ -1529,6 +1532,15 @@ const AnesthesiaMedicationChart = forwardRef<AnesthesiaMedicationChartRef, Anest
                 fullWidth
                 required
                 inputProps={{ min: 0, step: 0.1 }}
+                InputProps={{
+                  endAdornment: (
+                    <InputAdornment position="end">
+                      <Typography variant="caption" color="text.secondary" sx={{ whiteSpace: 'nowrap' }}>
+                        {currentRateUnit}
+                      </Typography>
+                    </InputAdornment>
+                  ),
+                }}
                 sx={{ mb: 2 }}
               />
 
