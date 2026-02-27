@@ -56,6 +56,45 @@ const criActivePulse = keyframes`
   100% { box-shadow: 0 0 0 0   rgba(255,255,255,0.00); }
 `;
 
+// Shared tooltip styling — matches VitalSignsChart dark-navy panel exactly
+const MED_TOOLTIP_SLOT_PROPS = {
+  tooltip: {
+    sx: {
+      bgcolor: 'rgba(10, 20, 45, 0.96)',
+      color: '#fff',
+      p: 0,
+      borderRadius: '6px',
+      boxShadow: '0 4px 18px rgba(0,0,0,0.5)',
+      fontSize: '0.72rem',
+      lineHeight: 1.65,
+      maxWidth: 280,
+    },
+  },
+  arrow: { sx: { color: 'rgba(10, 20, 45, 0.96)' } },
+} as const;
+
+// Reusable row for inside tooltip panels
+const TipRow = ({
+  dot,
+  label,
+  value,
+  dimValue = false,
+}: {
+  dot: string;
+  label: string;
+  value: string;
+  dimValue?: boolean;
+}) => (
+  <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 2 }}>
+    <div style={{ width: 7, height: 7, borderRadius: '50%', backgroundColor: dot, flexShrink: 0 }} />
+    <span style={{ color: 'rgba(255,255,255,0.5)', minWidth: 56, fontSize: '0.67rem' }}>{label}</span>
+    <span style={{
+      marginLeft: 'auto', paddingLeft: 10, fontWeight: dimValue ? 400 : 600,
+      color: dimValue ? 'rgba(255,255,255,0.45)' : '#fff', fontSize: '0.72rem',
+    }}>{value}</span>
+  </div>
+);
+
 // Define available medications
 const availableCRIs = [
   { name: 'Ketamine', defaultUnit: 'mcg/kg/min', color: '#64b5f6' },
@@ -820,6 +859,7 @@ const AnesthesiaMedicationChart = forwardRef<AnesthesiaMedicationChartRef, Anest
             placement="right"
             enterDelay={500}
             disableInteractive
+            slotProps={MED_TOOLTIP_SLOT_PROPS}
           >
             <Typography
               variant="subtitle2"
@@ -926,39 +966,51 @@ const AnesthesiaMedicationChart = forwardRef<AnesthesiaMedicationChartRef, Anest
                     <Tooltip
                       placement="top"
                       arrow
+                      enterDelay={120}
+                      enterNextDelay={80}
+                      slotProps={MED_TOOLTIP_SLOT_PROPS}
                       title={
-                        <React.Fragment>
-                          <Typography variant="body2" sx={{ fontWeight: 700 }}>
-                            {cri.name} CRI
-                          </Typography>
-                          <Typography variant="caption" display="block">
-                            Rate: {seg.rate} {cri.unit}
-                          </Typography>
+                        <div style={{ padding: '10px 13px', minWidth: 180 }}>
+                          {/* Header */}
+                          <div style={{
+                            marginBottom: 7, borderBottom: '1px solid rgba(255,255,255,0.1)',
+                            paddingBottom: 6, display: 'flex', alignItems: 'baseline', gap: 6,
+                          }}>
+                            <span style={{ fontWeight: 700, fontSize: '0.8rem' }}>{cri.name}</span>
+                            <span style={{ color: 'rgba(255,255,255,0.4)', fontSize: '0.67rem' }}>CRI</span>
+                          </div>
+                          {/* Rows */}
+                          <TipRow dot={lane.color} label="Rate" value={`${seg.rate} ${cri.unit}`} />
                           {seg.prevRate !== null && (
-                            <Typography variant="caption" display="block" sx={{ color: 'grey.400' }}>
-                              Changed from {seg.prevRate} {cri.unit}
-                            </Typography>
+                            <TipRow dot="rgba(255,255,255,0.18)" label="Prev rate" value={`${seg.prevRate} ${cri.unit}`} dimValue />
                           )}
-                          <Typography variant="caption" display="block">
-                            {format(seg.startTime, 'HH:mm')} → {seg.isActive ? 'active' : format(seg.endTime, 'HH:mm')}
-                          </Typography>
-                          <Typography variant="caption" display="block">
-                            Duration: {segDurationMin} min
-                          </Typography>
+                          <TipRow
+                            dot="rgba(255,255,255,0.18)"
+                            label="Time"
+                            value={`${format(seg.startTime, 'HH:mm')} → ${seg.isActive ? 'now' : format(seg.endTime, 'HH:mm')}`}
+                          />
+                          <TipRow dot="rgba(255,255,255,0.18)" label="Duration" value={`${segDurationMin} min`} />
+                          {/* Footer */}
                           {seg.isActive && (
-                            <Typography variant="caption" display="block" sx={{ fontWeight: 'bold', mt: 0.5 }}>
+                            <div style={{
+                              marginTop: 7, borderTop: '1px solid rgba(255,255,255,0.1)',
+                              paddingTop: 5, fontSize: '0.67rem', color: '#29B6F6',
+                            }}>
                               Click to edit rate
-                            </Typography>
+                            </div>
                           )}
                           {isStopped && seg.isLast && cri.endTime && (
-                            <Typography variant="caption" display="block" sx={{ fontStyle: 'italic' }}>
+                            <div style={{
+                              marginTop: 7, borderTop: '1px solid rgba(255,255,255,0.1)',
+                              paddingTop: 5, fontSize: '0.67rem', color: 'rgba(255,255,255,0.45)',
+                            }}>
                               Stopped at {format(
                                 cri.endTime instanceof Date ? cri.endTime : new Date(cri.endTime),
                                 'HH:mm'
                               )}
-                            </Typography>
+                            </div>
                           )}
-                        </React.Fragment>
+                        </div>
                       }
                     >
                       <Box
@@ -1053,22 +1105,29 @@ const AnesthesiaMedicationChart = forwardRef<AnesthesiaMedicationChartRef, Anest
           return (
             <Tooltip
               key={`bolus-${bolus.id}`}
-              title={
-                <React.Fragment>
-                  <Typography variant="body2" sx={{ fontWeight: 700 }}>{lane.name} Bolus</Typography>
-                  <Typography variant="caption" display="block">
-                    Dose: {bolus.dose} {bolus.unit}
-                  </Typography>
-                  <Typography variant="caption" display="block">
-                    Time: {format(bolusTime, 'HH:mm')}
-                  </Typography>
-                  <Typography variant="caption" display="block" sx={{ color: 'grey.400' }}>
-                    {bolus.administeredBy || 'Anesthesia'}
-                  </Typography>
-                </React.Fragment>
-              }
               placement="top"
               arrow
+              enterDelay={120}
+              enterNextDelay={80}
+              slotProps={MED_TOOLTIP_SLOT_PROPS}
+              title={
+                <div style={{ padding: '10px 13px', minWidth: 160 }}>
+                  {/* Header */}
+                  <div style={{
+                    marginBottom: 7, borderBottom: '1px solid rgba(255,255,255,0.1)',
+                    paddingBottom: 6, display: 'flex', alignItems: 'baseline', gap: 6,
+                  }}>
+                    <span style={{ fontWeight: 700, fontSize: '0.8rem' }}>{lane.name}</span>
+                    <span style={{ color: 'rgba(255,255,255,0.4)', fontSize: '0.67rem' }}>Bolus</span>
+                  </div>
+                  {/* Rows */}
+                  <TipRow dot={lane.color} label="Dose" value={`${bolus.dose} ${bolus.unit}`} />
+                  <TipRow dot="rgba(255,255,255,0.18)" label="Time" value={format(bolusTime, 'HH:mm')} />
+                  {bolus.administeredBy && (
+                    <TipRow dot="rgba(255,255,255,0.18)" label="By" value={bolus.administeredBy} dimValue />
+                  )}
+                </div>
+              }
             >
               {/* Wrapper: absolutely positioned, centered on the time tick */}
               <Box
