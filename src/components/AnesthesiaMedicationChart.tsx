@@ -725,6 +725,67 @@ const AnesthesiaMedicationChart = forwardRef<AnesthesiaMedicationChartRef, Anest
     });
   };
 
+  // ── Segmented CRI helpers ──────────────────────────────────────
+
+  interface CRISegment {
+    startTime: Date;
+    endTime: Date;
+    rate: number;
+    prevRate: number | null;
+    isFirst: boolean;
+    isLast: boolean;
+    isActive: boolean; // last segment of an active CRI
+  }
+
+  /** Convert a CRI's rateHistory into renderable segments. */
+  const buildCRISegments = (cri: AnesthesiaCRI): CRISegment[] => {
+    const history = cri.rateHistory && cri.rateHistory.length > 0
+      ? cri.rateHistory.map(rh => ({
+          timestamp: rh.timestamp instanceof Date ? rh.timestamp : new Date(rh.timestamp),
+          rate: rh.rate,
+        }))
+      : [{
+          timestamp: cri.startTime instanceof Date ? cri.startTime : new Date(cri.startTime),
+          rate: cri.rate,
+        }];
+
+    // Sort ascending (defensive)
+    history.sort((a, b) => a.timestamp.getTime() - b.timestamp.getTime());
+
+    const criEnd = cri.endTime
+      ? (cri.endTime instanceof Date ? cri.endTime : new Date(cri.endTime))
+      : effectiveEndTime;
+
+    const segments: CRISegment[] = [];
+    for (let i = 0; i < history.length; i++) {
+      const segStart = history[i].timestamp;
+      const segEnd = i < history.length - 1 ? history[i + 1].timestamp : criEnd;
+      const isLast = i === history.length - 1;
+
+      segments.push({
+        startTime: segStart,
+        endTime: segEnd,
+        rate: history[i].rate,
+        prevRate: i > 0 ? history[i - 1].rate : null,
+        isFirst: i === 0,
+        isLast,
+        isActive: isLast && !cri.endTime,
+      });
+    }
+    return segments;
+  };
+
+  /** Map a rate to a pixel height (12–24 px) relative to that CRI's range. */
+  const computeSegmentHeight = (rate: number, minRate: number, maxRate: number): number => {
+    const MIN_H = 12;
+    const MAX_H = 24;
+    if (maxRate === minRate) return MAX_H;
+    const ratio = (rate - minRate) / (maxRate - minRate);
+    return MIN_H + ratio * (MAX_H - MIN_H);
+  };
+
+  // ── Lane rendering ────────────────────────────────────────────
+
   // Render a single lane for a medication
   const renderLane = (lane: MedicationLaneData, index: number) => {
     return (
@@ -793,224 +854,185 @@ const AnesthesiaMedicationChart = forwardRef<AnesthesiaMedicationChartRef, Anest
         {/* Grid lines */}
         {renderGridLines()}
 
-        {/* Render CRIs as horizontal bars */}
+        {/* Render CRIs as segmented bars — each rate interval is its own block */}
         {lane.cris.map(cri => {
-          const startTime = cri.startTime instanceof Date ? cri.startTime : new Date(cri.startTime);
-          const endTime = cri.endTime ? (cri.endTime instanceof Date ? cri.endTime : new Date(cri.endTime)) : undefined;
+          const segments = buildCRISegments(cri);
+          if (segments.length === 0) return null;
 
-          const startPosition = calculateTimePosition(startTime);
-          const width = calculateBarWidth(startTime, endTime);
+          const allRates = segments.map(s => s.rate);
+          const minRate = Math.min(...allRates);
+          const maxRate = Math.max(...allRates);
+          const isStopped = !!cri.endTime;
 
-          if (width <= 0) return null; // Skip if outside visible range
+          return (
+            <React.Fragment key={`cri-${cri.id}`}>
+              {segments.map((seg, segIdx) => {
+                const segStartPos = calculateTimePosition(seg.startTime);
+                const segWidth = calculateBarWidth(seg.startTime, seg.endTime);
+                if (segWidth <= 0) return null;
 
-          // Generate rate history tooltip content
-          const rateHistoryContent = cri.rateHistory && cri.rateHistory.length > 0 ? (
-            <React.Fragment>
-              <Typography variant="caption" sx={{ fontWeight: 'bold', mt: 1 }}>Rate History:</Typography>
-              {cri.rateHistory.map((ratePoint, idx) => {
-                const pointTime = ratePoint.timestamp instanceof Date
-                  ? ratePoint.timestamp
-                  : new Date(ratePoint.timestamp);
+                const barHeight = computeSegmentHeight(seg.rate, minRate, maxRate);
+                const barTop = 42 - barHeight; // bottom-align at y=42
+
+                const segDurationMs = seg.endTime.getTime() - seg.startTime.getTime();
+                const segDurationMin = Math.round(segDurationMs / 60000);
+
+                // Rate change badge between segments
+                const isIncrease = seg.prevRate !== null && seg.rate > seg.prevRate;
+                const isDecrease = seg.prevRate !== null && seg.rate < seg.prevRate;
 
                 return (
-                  <Typography key={idx} variant="caption" display="block" sx={{ pl: 1 }}>
-                    {format(pointTime, 'HH:mm:ss')}: {ratePoint.rate} {cri.unit}
-                    {idx === 0 ? ' (initial)' : ''}
-                  </Typography>
+                  <React.Fragment key={`seg-${cri.id}-${segIdx}`}>
+                    {/* ── Rate change badge ── */}
+                    {seg.prevRate !== null && seg.rate !== seg.prevRate && (
+                      <Box
+                        sx={{
+                          position: 'absolute',
+                          left: `${segStartPos}%`,
+                          transform: 'translateX(-50%)',
+                          top: '0px',
+                          display: 'flex',
+                          flexDirection: 'column',
+                          alignItems: 'center',
+                          zIndex: 8,
+                          pointerEvents: 'none',
+                        }}
+                      >
+                        <Typography sx={{
+                          fontSize: '0.6rem',
+                          fontWeight: 800,
+                          lineHeight: 1,
+                          color: isIncrease ? '#4caf50' : isDecrease ? '#e53935' : '#9e9e9e',
+                          textShadow: '0 0 3px rgba(255,255,255,0.95)',
+                        }}>
+                          {isIncrease ? '\u2191' : '\u2193'}
+                        </Typography>
+                        {segWidth > 3 && (
+                          <Typography sx={{
+                            fontSize: '0.5rem',
+                            fontWeight: 700,
+                            lineHeight: 1,
+                            color: 'text.secondary',
+                            mt: '-1px',
+                            textShadow: '0 0 3px rgba(255,255,255,0.95)',
+                          }}>
+                            {seg.rate}
+                          </Typography>
+                        )}
+                      </Box>
+                    )}
+
+                    {/* ── Segment bar ── */}
+                    <Tooltip
+                      placement="top"
+                      arrow
+                      title={
+                        <React.Fragment>
+                          <Typography variant="body2" sx={{ fontWeight: 700 }}>
+                            {cri.name} CRI
+                          </Typography>
+                          <Typography variant="caption" display="block">
+                            Rate: {seg.rate} {cri.unit}
+                          </Typography>
+                          {seg.prevRate !== null && (
+                            <Typography variant="caption" display="block" sx={{ color: 'grey.400' }}>
+                              Changed from {seg.prevRate} {cri.unit}
+                            </Typography>
+                          )}
+                          <Typography variant="caption" display="block">
+                            {format(seg.startTime, 'HH:mm')} → {seg.isActive ? 'active' : format(seg.endTime, 'HH:mm')}
+                          </Typography>
+                          <Typography variant="caption" display="block">
+                            Duration: {segDurationMin} min
+                          </Typography>
+                          {seg.isActive && (
+                            <Typography variant="caption" display="block" sx={{ fontWeight: 'bold', mt: 0.5 }}>
+                              Click to edit rate
+                            </Typography>
+                          )}
+                          {isStopped && seg.isLast && cri.endTime && (
+                            <Typography variant="caption" display="block" sx={{ fontStyle: 'italic' }}>
+                              Stopped at {format(
+                                cri.endTime instanceof Date ? cri.endTime : new Date(cri.endTime),
+                                'HH:mm'
+                              )}
+                            </Typography>
+                          )}
+                        </React.Fragment>
+                      }
+                    >
+                      <Box
+                        sx={{
+                          position: 'absolute',
+                          left: `${segStartPos}%`,
+                          width: `calc(${segWidth}% - ${seg.isLast ? 0 : 1}px)`,
+                          top: `${barTop}px`,
+                          height: `${barHeight}px`,
+                          backgroundColor: lane.color,
+                          borderRadius:
+                            seg.isFirst && seg.isLast ? '4px'
+                            : seg.isFirst ? '4px 0 0 4px'
+                            : seg.isLast  ? '0 4px 4px 0'
+                            : '0',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          cursor: isStopped ? 'default' : 'pointer',
+                          opacity: isStopped ? 0.68 : 1,
+                          filter: isStopped ? 'saturate(0.6)' : 'none',
+                          transition: 'opacity 0.2s, filter 0.2s, box-shadow 0.15s',
+                          zIndex: 3,
+                          '&:hover': {
+                            boxShadow: '0 0 0 2px rgba(0,0,0,0.2)',
+                            zIndex: 5,
+                          },
+                        }}
+                        onClick={() => !isStopped && handleOpenEditRateDialog(cri)}
+                      >
+                        {/* Rate label inside segment */}
+                        {segWidth > 6 && (
+                          <Typography
+                            variant="caption"
+                            sx={{
+                              color: theme.palette.getContrastText(lane.color),
+                              fontSize: '0.6rem',
+                              fontWeight: 'bold',
+                              whiteSpace: 'nowrap',
+                              overflow: 'hidden',
+                              textOverflow: 'ellipsis',
+                              px: '3px',
+                              lineHeight: 1,
+                            }}
+                          >
+                            {seg.rate} {cri.unit}
+                          </Typography>
+                        )}
+
+                        {/* Pulsing dot — active CRI, last segment only */}
+                        {seg.isActive && (
+                          <Box
+                            sx={{
+                              position: 'absolute',
+                              right: '-5px',
+                              top: '50%',
+                              transform: 'translateY(-50%)',
+                              width: '10px',
+                              height: '10px',
+                              borderRadius: '50%',
+                              backgroundColor: 'white',
+                              boxShadow: `0 0 0 2px ${darken(lane.color, 0.15)}`,
+                              zIndex: 7,
+                              animation: `${criActivePulse} 1.8s ease-out infinite`,
+                              pointerEvents: 'none',
+                            }}
+                          />
+                        )}
+                      </Box>
+                    </Tooltip>
+                  </React.Fragment>
                 );
               })}
             </React.Fragment>
-          ) : null;
-
-          return (
-            <Tooltip
-              key={`cri-${cri.id}`}
-              title={
-                <React.Fragment>
-                  <Typography variant="body2">{lane.name} CRI</Typography>
-                  <Typography variant="caption" display="block">
-                    Current Rate: {cri.rate} {cri.unit}
-                  </Typography>
-                  <Typography variant="caption" display="block">
-                    Started: {format(startTime, 'HH:mm:ss')}
-                  </Typography>
-                  {endTime && (
-                    <Typography variant="caption" display="block">
-                      Stopped: {format(endTime, 'HH:mm:ss')}
-                    </Typography>
-                  )}
-                  {!endTime && (
-                    <Typography variant="caption" display="block" sx={{ fontWeight: 'bold' }}>
-                      Currently active
-                    </Typography>
-                  )}
-                  {rateHistoryContent}
-                </React.Fragment>
-              }
-            >
-              <Box
-                sx={{
-                  position: 'absolute',
-                  left: `${startPosition}%`,
-                  width: `${width}%`,
-                  top: '20px',
-                  height: '20px',
-                  backgroundColor: lane.color,
-                  borderRadius: '4px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  cursor: 'pointer',
-                  // Stopped CRIs are visually dimmed
-                  opacity: endTime ? 0.68 : 1,
-                  filter: endTime ? 'saturate(0.6)' : 'none',
-                  transition: 'opacity 0.2s, filter 0.2s',
-                  '&:hover': {
-                    boxShadow: '0 0 0 2px rgba(0,0,0,0.2)',
-                  },
-                  '&::after': width < 5 ? {
-                    content: '""',
-                    position: 'absolute',
-                    left: '100%',
-                    top: 0,
-                    height: '100%',
-                    width: '20px'
-                  } : {}
-                }}
-                onClick={() => !endTime && handleOpenEditRateDialog(cri)}
-              >
-                {width > 8 && (
-                  <Typography
-                    variant="caption"
-                    sx={{
-                      color: theme.palette.getContrastText(lane.color),
-                      fontSize: '0.6rem',
-                      fontWeight: 'bold',
-                      whiteSpace: 'nowrap',
-                      overflow: 'hidden',
-                      textOverflow: 'ellipsis',
-                      padding: '0 4px'
-                    }}
-                  >
-                    {cri.rate} {cri.unit}
-                  </Typography>
-                )}
-
-                {/* Pulsing dot at the right end — active CRIs only */}
-                {!endTime && (
-                  <Box
-                    sx={{
-                      position: 'absolute',
-                      right: '-5px',
-                      top: '50%',
-                      transform: 'translateY(-50%)',
-                      width: '10px',
-                      height: '10px',
-                      borderRadius: '50%',
-                      backgroundColor: 'white',
-                      boxShadow: `0 0 0 2px ${darken(lane.color, 0.15)}`,
-                      zIndex: 7,
-                      animation: `${criActivePulse} 1.8s ease-out infinite`,
-                      pointerEvents: 'none',
-                    }}
-                  />
-                )}
-
-                {/* Render rate change markers */}
-                {cri.rateHistory && cri.rateHistory.length > 1 &&
-                  cri.rateHistory.slice(1).map((rateChange, idx) => {
-                    const changeTime = rateChange.timestamp instanceof Date
-                      ? rateChange.timestamp
-                      : new Date(rateChange.timestamp);
-
-                    // Skip if change time is outside the visible range or after end time
-                    if (endTime && changeTime > endTime) return null;
-
-                    const changePosition = calculateTimePosition(changeTime);
-                    const relativePosition = (changePosition - startPosition) / (width / 100);
-
-                    // Skip if outside the bar's width
-                    if (relativePosition < 0 || relativePosition > 100) return null;
-
-                    // Find previous rate for comparison
-                    let prevRate: number | null = null;
-
-                    if (cri.rateHistory && cri.rateHistory.length > 1) {
-                      // Safely find the index of the current rate change
-                      const currentIndex = cri.rateHistory.findIndex(r => {
-                        const rTime = r.timestamp instanceof Date ? r.timestamp : new Date(r.timestamp);
-                        return rTime.getTime() === changeTime.getTime();
-                      });
-
-                      // If we found it and it's not the first item, get the previous rate
-                      if (currentIndex > 0) {
-                        prevRate = cri.rateHistory[currentIndex - 1].rate;
-                      }
-                    }
-
-                    const rateDirection = prevRate !== null
-                      ? (rateChange.rate > prevRate ? '↑' : rateChange.rate < prevRate ? '↓' : '→')
-                      : '';
-
-                    return (
-                      <Tooltip
-                        key={`rate-change-${cri.id}-${idx}`}
-                        title={
-                          <React.Fragment>
-                            <Typography variant="caption" display="block" sx={{ fontWeight: 'bold' }}>
-                              Rate Change
-                            </Typography>
-                            <Typography variant="caption" display="block">
-                              At: {format(changeTime, 'HH:mm:ss')}
-                            </Typography>
-                            {prevRate !== null && (
-                              <Typography variant="caption" display="block">
-                                From: {prevRate} {cri.unit}
-                              </Typography>
-                            )}
-                            <Typography variant="caption" display="block">
-                              To: {rateChange.rate} {cri.unit}
-                            </Typography>
-                          </React.Fragment>
-                        }
-                      >
-                        <Box
-                          sx={{
-                            position: 'absolute',
-                            left: `${relativePosition}%`,
-                            top: 0,
-                            height: '100%',
-                            width: '2px',
-                            backgroundColor: darken(lane.color, 0.3),
-                            zIndex: 5,
-                            '&::after': {
-                              content: '""',
-                              position: 'absolute',
-                              top: 0,
-                              left: '-3px',
-                              width: '8px',
-                              height: '8px',
-                              backgroundColor: darken(lane.color, 0.3),
-                              borderRadius: '50%'
-                            },
-                            '&:hover': {
-                              width: '3px',
-                              backgroundColor: darken(lane.color, 0.5),
-                              '&::after': {
-                                backgroundColor: darken(lane.color, 0.5),
-                                width: '10px',
-                                height: '10px',
-                                left: '-4px'
-                              }
-                            }
-                          }}
-                        />
-                      </Tooltip>
-                    );
-                  })
-                }
-              </Box>
-            </Tooltip>
           );
         })}
 
