@@ -43,10 +43,18 @@ import { AnesthesiaCRI, AnesthesiaBolus, FormularyDrug } from '../types';
 import { addAnesthesiaBolus, addAnesthesiaCRI, updateCRIRate, stopCRI, getAnesthesiaCRIs, getAnesthesiaBoluses } from '../services/patients';
 import { format } from 'date-fns';
 import { alpha, darken, useTheme } from '@mui/material/styles';
+import { keyframes } from '@emotion/react';
 import html2canvas from 'html2canvas';
 import { getAllFormularyDrugs } from '../services/formulary';
 import { calculateMedicationTotals } from '../utils/calculations';
 import { PLOT_AREA_LEFT, PLOT_AREA_RIGHT, generate5MinTicks } from '../utils/chartConstants';
+
+// Ripple pulse animation for active CRI end-cap dot
+const criActivePulse = keyframes`
+  0%   { box-shadow: 0 0 0 0   rgba(255,255,255,0.80); }
+  65%  { box-shadow: 0 0 0 5px rgba(255,255,255,0.00); }
+  100% { box-shadow: 0 0 0 0   rgba(255,255,255,0.00); }
+`;
 
 // Define available medications
 const availableCRIs = [
@@ -144,7 +152,11 @@ const AnesthesiaMedicationChart = forwardRef<AnesthesiaMedicationChartRef, Anest
   const [editCRIId, setEditCRIId] = useState('');
   const [editCRIName, setEditCRIName] = useState('');
   const [currentRate, setCurrentRate] = useState('');
+  const [currentRateUnit, setCurrentRateUnit] = useState('');
   const [newRate, setNewRate] = useState('');
+
+  // Stop CRI confirmation dialog
+  const [stopConfirmOpen, setStopConfirmOpen] = useState(false);
 
   // Snackbar state
   const [snackbar, setSnackbar] = useState({
@@ -164,7 +176,6 @@ const AnesthesiaMedicationChart = forwardRef<AnesthesiaMedicationChartRef, Anest
     getChartImage: async (): Promise<string | undefined> => {
       if (containerRef.current && !loading && !hasError) {
         try {
-          console.log('Creating chart image...');
           const canvas = await html2canvas(containerRef.current, {
             scale: 2, // Higher resolution
             logging: false,
@@ -211,7 +222,6 @@ const AnesthesiaMedicationChart = forwardRef<AnesthesiaMedicationChartRef, Anest
   const fetchMedicationData = useCallback(async () => {
     try {
       setLoading(true);
-      console.log('Fetching medication data for patient:', patientId);
 
       // Make sure patientId is valid before proceeding
       if (!patientId) {
@@ -226,11 +236,6 @@ const AnesthesiaMedicationChart = forwardRef<AnesthesiaMedicationChartRef, Anest
         getAnesthesiaCRIs(patientId),
         getAnesthesiaBoluses(patientId)
       ]);
-
-      console.log('Fetched medications:', {
-        cris: fetchedCRIs.length,
-        boluses: fetchedBoluses.length
-      });
 
       setActiveCRIs(fetchedCRIs);
       setBoluses(fetchedBoluses);
@@ -272,7 +277,6 @@ const AnesthesiaMedicationChart = forwardRef<AnesthesiaMedicationChartRef, Anest
 
   // Initial data load
   useEffect(() => {
-    console.log('Initial data load triggered with patientId:', patientId);
     if (patientId) {
       fetchMedicationData();
     }
@@ -281,12 +285,6 @@ const AnesthesiaMedicationChart = forwardRef<AnesthesiaMedicationChartRef, Anest
   // Process data into lanes
   useEffect(() => {
     if (!loading) {
-      console.log('Processing data into lanes:', {
-        activeCRIs: activeCRIs.length,
-        boluses: boluses.length,
-        formularyDrugs: formularyDrugs.length
-      });
-
       try {
         // Create a map of medication names to their data
         const lanes: Record<string, MedicationLaneData> = {};
@@ -310,7 +308,6 @@ const AnesthesiaMedicationChart = forwardRef<AnesthesiaMedicationChartRef, Anest
 
         // Sort the names for consistency
         const sortedNames = Array.from(medicationNames).sort();
-        console.log('Found medication names:', sortedNames);
 
         // Create lane for each medication
         sortedNames.forEach(name => {
@@ -377,12 +374,44 @@ const AnesthesiaMedicationChart = forwardRef<AnesthesiaMedicationChartRef, Anest
           };
         });
 
-        // Convert to array and sort by name
-        const newLanes = Object.values(lanes).sort((a, b) =>
-          a.name.localeCompare(b.name)
-        );
+        // Sort lanes clinically:
+        //   1. Active CRIs (currently running)  — sorted by earliest start time
+        //   2. Stopped CRIs (discontinued)      — sorted by earliest start time
+        //   3. Bolus-only lanes                 — sorted by first dose time
+        const toMs = (d: Date | string): number =>
+          (d instanceof Date ? d : new Date(d)).getTime();
 
-        console.log('Created lanes:', newLanes.length);
+        const newLanes = Object.values(lanes).sort((a, b) => {
+          const aHasCRI   = a.cris.length > 0;
+          const bHasCRI   = b.cris.length > 0;
+          const aActive   = a.cris.some(c => !c.endTime);
+          const bActive   = b.cris.some(c => !c.endTime);
+
+          // Tier 1: active CRIs above everything else
+          if (aActive  && !bActive)  return -1;
+          if (!aActive &&  bActive)  return  1;
+
+          // Tier 2: stopped CRIs above bolus-only
+          if (aHasCRI  && !bHasCRI)  return -1;
+          if (!aHasCRI &&  bHasCRI)  return  1;
+
+          // Within CRI tiers: sort by earliest CRI start time
+          if (aHasCRI && bHasCRI) {
+            const aStart = Math.min(...a.cris.map(c => toMs(c.startTime)));
+            const bStart = Math.min(...b.cris.map(c => toMs(c.startTime)));
+            return aStart - bStart;
+          }
+
+          // Both bolus-only: sort by first bolus time
+          const aFirst = a.boluses.length
+            ? Math.min(...a.boluses.map(bo => toMs(bo.timestamp)))
+            : Infinity;
+          const bFirst = b.boluses.length
+            ? Math.min(...b.boluses.map(bo => toMs(bo.timestamp)))
+            : Infinity;
+          return aFirst - bFirst;
+        });
+
         setLanes(newLanes);
       } catch (error) {
         console.error('Error processing medication data:', error);
@@ -459,16 +488,7 @@ const AnesthesiaMedicationChart = forwardRef<AnesthesiaMedicationChartRef, Anest
     try {
       const medicationName = getCRIMedicationName();
 
-      console.log('Adding CRI:', {
-        medicationName,
-        criRate,
-        criUnit,
-        selectedCRIDrug: typeof selectedCRIDrug === 'object' && selectedCRIDrug ? selectedCRIDrug.name : selectedCRIDrug,
-        customCRIName
-      });
-
       if (!medicationName || !criRate || !criUnit) {
-        console.error('Validation failed:', { medicationName, criRate, criUnit });
         setSnackbar({
           open: true,
           message: 'Please provide medication name, rate, and unit',
@@ -479,7 +499,6 @@ const AnesthesiaMedicationChart = forwardRef<AnesthesiaMedicationChartRef, Anest
 
       const parsedRate = parseFloat(criRate);
       if (isNaN(parsedRate)) {
-        console.error('Invalid rate value:', criRate);
         setSnackbar({
           open: true,
           message: 'Please enter a valid number for the rate',
@@ -487,8 +506,6 @@ const AnesthesiaMedicationChart = forwardRef<AnesthesiaMedicationChartRef, Anest
         });
         return;
       }
-
-      console.log('Creating new CRI object');
 
       const newCRI: Omit<AnesthesiaCRI, 'id'> = {
         name: medicationName,
@@ -503,12 +520,7 @@ const AnesthesiaMedicationChart = forwardRef<AnesthesiaMedicationChartRef, Anest
         administeredBy: currentUser
       };
 
-      console.log('Sending new CRI to API:', JSON.stringify(newCRI));
-      console.log('Patient ID:', patientId);
-
       const response = await addAnesthesiaCRI(patientId, newCRI);
-
-      console.log('CRI added successfully with ID:', response);
 
       setSnackbar({
         open: true,
@@ -633,22 +645,32 @@ const AnesthesiaMedicationChart = forwardRef<AnesthesiaMedicationChartRef, Anest
     }
   };
 
-  const handleStopCRI = async (criId: string, criName: string) => {
-    try {
-      // Ask for confirmation
-      if (!window.confirm(`Are you sure you want to stop the ${criName} CRI?`)) {
-        return;
-      }
+  // Called when the user clicks "Stop CRI" inside the edit-rate dialog.
+  // Closes the edit dialog and opens the dedicated confirmation dialog.
+  const handleRequestStopCRI = () => {
+    setEditRateOpen(false);
+    setStopConfirmOpen(true);
+  };
 
-      await stopCRI(patientId, criId);
+  // Called when the user confirms the stop in the confirmation dialog.
+  const handleConfirmStop = async () => {
+    setStopConfirmOpen(false);
+    try {
+      await stopCRI(patientId, editCRIId);
 
       setSnackbar({
         open: true,
-        message: `${criName} CRI stopped successfully`,
+        message: `${editCRIName} CRI stopped`,
         severity: 'success'
       });
 
-      // Refresh data
+      // Clear edit state
+      setEditCRIId('');
+      setEditCRIName('');
+      setCurrentRate('');
+      setCurrentRateUnit('');
+      setNewRate('');
+
       await fetchMedicationData();
 
     } catch (error) {
@@ -666,6 +688,7 @@ const AnesthesiaMedicationChart = forwardRef<AnesthesiaMedicationChartRef, Anest
     setEditCRIId(cri.id);
     setEditCRIName(cri.name);
     setCurrentRate(cri.rate.toString());
+    setCurrentRateUnit(cri.unit);
     setNewRate(cri.rate.toString()); // Default to current rate
     setEditRateOpen(true);
   };
@@ -730,24 +753,33 @@ const AnesthesiaMedicationChart = forwardRef<AnesthesiaMedicationChartRef, Anest
             alignItems: 'flex-start',
           }}
         >
-          <Typography
-            variant="subtitle2"
-            sx={{
-              width: '100%',
-              padding: '4px 6px',
-              fontSize: '0.78rem',
-              fontWeight: 700,
-              overflow: 'hidden',
-              textOverflow: 'ellipsis',
-              whiteSpace: 'nowrap',
-              color: theme.palette.text.primary,
-              backgroundColor: alpha(lane.color, 0.22),
-              borderRadius: '0 0 4px 0',
-              letterSpacing: '0.01em',
-            }}
+          {/* Tooltip reveals full name whenever the text is truncated */}
+          <Tooltip
+            title={lane.name}
+            placement="right"
+            enterDelay={500}
+            disableInteractive
           >
-            {lane.name}
-          </Typography>
+            <Typography
+              variant="subtitle2"
+              sx={{
+                width: '100%',
+                padding: '4px 6px',
+                fontSize: '0.73rem',
+                fontWeight: 700,
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                whiteSpace: 'nowrap',
+                color: theme.palette.text.primary,
+                backgroundColor: alpha(lane.color, 0.22),
+                borderRadius: '0 0 4px 0',
+                letterSpacing: '0.01em',
+                cursor: 'default',
+              }}
+            >
+              {lane.name}
+            </Typography>
+          </Tooltip>
         </Box>
 
         {/* Data area — percentage positioning aligns with VitalSignsChart plot area */}
@@ -821,7 +853,7 @@ const AnesthesiaMedicationChart = forwardRef<AnesthesiaMedicationChartRef, Anest
                   position: 'absolute',
                   left: `${startPosition}%`,
                   width: `${width}%`,
-                  top: '20px', // Below the label
+                  top: '20px',
                   height: '20px',
                   backgroundColor: lane.color,
                   borderRadius: '4px',
@@ -829,6 +861,10 @@ const AnesthesiaMedicationChart = forwardRef<AnesthesiaMedicationChartRef, Anest
                   alignItems: 'center',
                   justifyContent: 'center',
                   cursor: 'pointer',
+                  // Stopped CRIs are visually dimmed
+                  opacity: endTime ? 0.68 : 1,
+                  filter: endTime ? 'saturate(0.6)' : 'none',
+                  transition: 'opacity 0.2s, filter 0.2s',
                   '&:hover': {
                     boxShadow: '0 0 0 2px rgba(0,0,0,0.2)',
                   },
@@ -838,7 +874,7 @@ const AnesthesiaMedicationChart = forwardRef<AnesthesiaMedicationChartRef, Anest
                     left: '100%',
                     top: 0,
                     height: '100%',
-                    width: '20px' // Invisible extension for hover detection
+                    width: '20px'
                   } : {}
                 }}
                 onClick={() => !endTime && handleOpenEditRateDialog(cri)}
@@ -858,6 +894,26 @@ const AnesthesiaMedicationChart = forwardRef<AnesthesiaMedicationChartRef, Anest
                   >
                     {cri.rate} {cri.unit}
                   </Typography>
+                )}
+
+                {/* Pulsing dot at the right end — active CRIs only */}
+                {!endTime && (
+                  <Box
+                    sx={{
+                      position: 'absolute',
+                      right: '-5px',
+                      top: '50%',
+                      transform: 'translateY(-50%)',
+                      width: '10px',
+                      height: '10px',
+                      borderRadius: '50%',
+                      backgroundColor: 'white',
+                      boxShadow: `0 0 0 2px ${darken(lane.color, 0.15)}`,
+                      zIndex: 7,
+                      animation: `${criActivePulse} 1.8s ease-out infinite`,
+                      pointerEvents: 'none',
+                    }}
+                  />
                 )}
 
                 {/* Render rate change markers */}
@@ -958,42 +1014,88 @@ const AnesthesiaMedicationChart = forwardRef<AnesthesiaMedicationChartRef, Anest
           );
         })}
 
-        {/* Render Boluses as markers */}
+        {/* Render Boluses as downward-pointing triangle markers */}
         {lane.boluses.map(bolus => {
           const bolusTime = bolus.timestamp instanceof Date ? bolus.timestamp : new Date(bolus.timestamp);
           const position = calculateTimePosition(bolusTime);
 
           if (position < 0 || position > 100) return null; // Skip if outside visible range
 
+          // Format dose: drop trailing ".0" for whole numbers, keep significant decimals
+          const doseLabel = Number.isInteger(bolus.dose)
+            ? String(bolus.dose)
+            : bolus.dose < 0.1
+              ? bolus.dose.toFixed(3).replace(/\.?0+$/, '')
+              : bolus.dose.toString();
+
           return (
             <Tooltip
               key={`bolus-${bolus.id}`}
               title={
                 <React.Fragment>
-                  <Typography variant="body2">{lane.name} Bolus</Typography>
+                  <Typography variant="body2" sx={{ fontWeight: 700 }}>{lane.name} Bolus</Typography>
                   <Typography variant="caption" display="block">
                     Dose: {bolus.dose} {bolus.unit}
                   </Typography>
                   <Typography variant="caption" display="block">
-                    Time: {format(bolusTime, 'HH:mm:ss')}
+                    Time: {format(bolusTime, 'HH:mm')}
+                  </Typography>
+                  <Typography variant="caption" display="block" sx={{ color: 'grey.400' }}>
+                    {bolus.administeredBy || 'Anesthesia'}
                   </Typography>
                 </React.Fragment>
               }
+              placement="top"
+              arrow
             >
+              {/* Wrapper: absolutely positioned, centered on the time tick */}
               <Box
                 sx={{
                   position: 'absolute',
                   left: `${position}%`,
-                  top: '10px',
-                  width: '10px',
-                  height: '10px',
-                  transform: 'translate(-50%, 0)',
-                  backgroundColor: lane.color,
-                  border: `2px solid ${darken(lane.color, 0.2)}`,
-                  borderRadius: '50%',
-                  zIndex: 5
+                  top: '1px',
+                  transform: 'translateX(-50%)',
+                  zIndex: 6,
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  cursor: 'pointer',
+                  '&:hover svg polygon': {
+                    fill: darken(lane.color, 0.25),
+                  },
                 }}
-              />
+              >
+                {/* Downward-pointing triangle (▼) */}
+                <svg
+                  width="16"
+                  height="13"
+                  viewBox="0 0 16 13"
+                  style={{ display: 'block', overflow: 'visible' }}
+                >
+                  <polygon
+                    points="8,13 0,0 16,0"
+                    fill={lane.color}
+                    stroke={darken(lane.color, 0.3)}
+                    strokeWidth="1.5"
+                    strokeLinejoin="round"
+                  />
+                </svg>
+
+                {/* Dose label below the triangle */}
+                <Typography
+                  sx={{
+                    fontSize: '0.58rem',
+                    fontWeight: 700,
+                    lineHeight: 1,
+                    mt: '2px',
+                    color: 'text.primary',
+                    whiteSpace: 'nowrap',
+                    userSelect: 'none',
+                  }}
+                >
+                  {doseLabel}
+                </Typography>
+              </Box>
             </Tooltip>
           );
         })}
@@ -1353,20 +1455,11 @@ const AnesthesiaMedicationChart = forwardRef<AnesthesiaMedicationChartRef, Anest
 
               <Box sx={{ display: 'flex', justifyContent: 'center', mt: 1 }}>
                 <Button
-                  variant="contained"
+                  variant="outlined"
                   color="error"
                   startIcon={<StopIcon />}
-                  onClick={() => {
-                    // Close the edit dialog
-                    setEditRateOpen(false);
-                    // Call the stop function
-                    handleStopCRI(editCRIId, editCRIName);
-                  }}
-                  sx={{
-                    py: 1,
-                    fontWeight: 'bold',
-                    width: '100%'
-                  }}
+                  onClick={handleRequestStopCRI}
+                  sx={{ py: 1, width: '100%' }}
                 >
                   Stop CRI
                 </Button>
@@ -1382,6 +1475,50 @@ const AnesthesiaMedicationChart = forwardRef<AnesthesiaMedicationChartRef, Anest
               disabled={!newRate || newRate === currentRate}
             >
               Update Rate
+            </Button>
+          </DialogActions>
+        </Dialog>
+
+        {/* Stop CRI Confirmation Dialog */}
+        <Dialog
+          open={stopConfirmOpen}
+          onClose={() => setStopConfirmOpen(false)}
+          maxWidth="xs"
+          fullWidth
+        >
+          <DialogTitle sx={{ display: 'flex', alignItems: 'center', gap: 1, color: 'error.main', pb: 1 }}>
+            <StopIcon fontSize="small" />
+            Stop {editCRIName} CRI?
+          </DialogTitle>
+          <DialogContent>
+            <Typography variant="body2" sx={{ mb: 1.5 }}>
+              This will mark the <strong>{editCRIName}</strong> infusion as stopped at the current time.
+            </Typography>
+            {currentRate && currentRateUnit && (
+              <Box sx={{ px: 1.5, py: 1, bgcolor: 'grey.100', borderRadius: 1, mb: 1.5 }}>
+                <Typography variant="caption" color="text.secondary" display="block">
+                  Currently running at
+                </Typography>
+                <Typography variant="body2" fontWeight={700}>
+                  {currentRate} {currentRateUnit}
+                </Typography>
+              </Box>
+            )}
+            <Typography variant="caption" color="text.secondary">
+              This action cannot be undone.
+            </Typography>
+          </DialogContent>
+          <DialogActions sx={{ px: 3, pb: 2 }}>
+            <Button onClick={() => setStopConfirmOpen(false)} variant="outlined">
+              Cancel
+            </Button>
+            <Button
+              onClick={handleConfirmStop}
+              variant="contained"
+              color="error"
+              startIcon={<StopIcon />}
+            >
+              Stop CRI
             </Button>
           </DialogActions>
         </Dialog>

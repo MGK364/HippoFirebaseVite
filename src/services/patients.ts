@@ -722,56 +722,69 @@ export const getAnesthesiaCRIs = async (patientId: string): Promise<AnesthesiaCR
 const createMockAnesthesiaBoluses = (patientId: string): AnesthesiaBolus[] => {
   const now = new Date();
   const boluses: AnesthesiaBolus[] = [];
-  
-  // Create boluses starting from 60 minutes ago
-  // Match with the timeframe of vital signs (createMockVitalSigns creates data every 15 minutes)
-  const bolusNames = ['Propofol', 'Ketamine', 'Hydromorphone', 'Midazolam', 'Atropine'];
 
-  // Induction dose at beginning
+  // Procedure spans 120 minutes — boluses distributed across the full window
+
+  // T-120: Propofol induction bolus
   boluses.push({
     id: `bolus-${patientId}-1`,
     name: 'Propofol',
     dose: 4.0,
     unit: 'mg/kg',
-    timestamp: new Date(now.getTime() - 60 * 60000), // 60 minutes ago
+    timestamp: new Date(now.getTime() - 120 * 60000),
     administeredBy: ''
   });
 
-  // Ketamine for initial analgesia
+  // T-119: Ketamine co-induction bolus
   boluses.push({
     id: `bolus-${patientId}-2`,
     name: 'Ketamine',
     dose: 2.0,
     unit: 'mg/kg',
-    timestamp: new Date(now.getTime() - 59 * 60000), // 59 minutes ago
+    timestamp: new Date(now.getTime() - 119 * 60000),
     administeredBy: ''
   });
 
-  // Hydromorphone for analgesia
+  // T-118: Hydromorphone pre-op opioid
   boluses.push({
     id: `bolus-${patientId}-3`,
     name: 'Hydromorphone',
     dose: 0.1,
     unit: 'mg/kg',
-    timestamp: new Date(now.getTime() - 58 * 60000), // 58 minutes ago
+    timestamp: new Date(now.getTime() - 118 * 60000),
     administeredBy: ''
   });
 
-  // Add some additional boluses during the procedure
-  for (let i = 4; i <= 8; i++) {
-    const timeOffset = Math.floor(Math.random() * 50) + 5; // Random time between 5-55 minutes ago
-    const nameIndex = Math.floor(Math.random() * bolusNames.length);
+  // T-75: Atropine for intra-op bradycardia
+  boluses.push({
+    id: `bolus-${patientId}-4`,
+    name: 'Atropine',
+    dose: 0.02,
+    unit: 'mg/kg',
+    timestamp: new Date(now.getTime() - 75 * 60000),
+    administeredBy: ''
+  });
 
-    boluses.push({
-      id: `bolus-${patientId}-${i}`,
-      name: bolusNames[nameIndex],
-      dose: Math.round((Math.random() * 2 + 0.5) * 10) / 10, // Random dose between 0.5-2.5
-      unit: nameIndex === 0 ? 'mg/kg' : nameIndex === 4 ? 'mg' : 'mg/kg',
-      timestamp: new Date(now.getTime() - timeOffset * 60000),
-      administeredBy: ''
-    });
-  }
-  
+  // T-50: Hydromorphone rescue dose
+  boluses.push({
+    id: `bolus-${patientId}-5`,
+    name: 'Hydromorphone',
+    dose: 0.05,
+    unit: 'mg/kg',
+    timestamp: new Date(now.getTime() - 50 * 60000),
+    administeredBy: ''
+  });
+
+  // T-15: Atropine — second dose at end of procedure
+  boluses.push({
+    id: `bolus-${patientId}-6`,
+    name: 'Atropine',
+    dose: 0.02,
+    unit: 'mg/kg',
+    timestamp: new Date(now.getTime() - 15 * 60000),
+    administeredBy: ''
+  });
+
   // Sort by timestamp
   return boluses.sort((a, b) => a.timestamp.getTime() - b.timestamp.getTime());
 };
@@ -781,116 +794,87 @@ const createMockAnesthesiaCRIs = (patientId: string): AnesthesiaCRI[] => {
   const now = new Date();
   const cris: AnesthesiaCRI[] = [];
 
-  // Ketamine CRI - started at beginning and still running
+  // Procedure spans 120 minutes — CRIs distributed across the full window
+
+  // Ketamine CRI — started at induction (T-120), still running
+  // Rate: 10 → 15 at T-60 → 10 at T-30
   const ketamineCRI: AnesthesiaCRI = {
     id: `cri-${patientId}-1`,
     name: 'Ketamine',
     rate: 10,
     unit: 'mcg/kg/min',
-    startTime: new Date(now.getTime() - 60 * 60000), // Started 60 minutes ago
+    startTime: new Date(now.getTime() - 120 * 60000),
     administeredBy: '',
     rateHistory: [
-      {
-        timestamp: new Date(now.getTime() - 60 * 60000),
-        rate: 10
-      },
-      {
-        timestamp: new Date(now.getTime() - 30 * 60000),
-        rate: 15
-      },
-      {
-        timestamp: new Date(now.getTime() - 15 * 60000),
-        rate: 10
-      }
+      { timestamp: new Date(now.getTime() - 120 * 60000), rate: 10 },
+      { timestamp: new Date(now.getTime() -  60 * 60000), rate: 15 },
+      { timestamp: new Date(now.getTime() -  30 * 60000), rate: 10 },
     ]
   };
   cris.push(ketamineCRI);
-  
-  // Lidocaine CRI - started at beginning and still running
+
+  // Lidocaine CRI — started shortly after induction (T-118), still running
   const lidocaineCRI: AnesthesiaCRI = {
     id: `cri-${patientId}-2`,
     name: 'Lidocaine',
     rate: 50,
     unit: 'mcg/kg/min',
-    startTime: new Date(now.getTime() - 55 * 60000), // Started 55 minutes ago
+    startTime: new Date(now.getTime() - 118 * 60000),
     administeredBy: '',
     rateHistory: [
-      {
-        timestamp: new Date(now.getTime() - 55 * 60000),
-        rate: 50
-      }
+      { timestamp: new Date(now.getTime() - 118 * 60000), rate: 50 },
+      { timestamp: new Date(now.getTime() -  70 * 60000), rate: 30 },
     ]
   };
   cris.push(lidocaineCRI);
-  
-  // Propofol CRI - started and then stopped
+
+  // Propofol CRI — started at induction (T-118), stopped at T-60 (switched to inhalant)
   const propofolCRI: AnesthesiaCRI = {
     id: `cri-${patientId}-3`,
     name: 'Propofol',
-    rate: 0.3,
+    rate: 0.2,
     unit: 'mg/kg/hr',
-    startTime: new Date(now.getTime() - 50 * 60000), // Started 50 minutes ago
-    endTime: new Date(now.getTime() - 20 * 60000), // Ended 20 minutes ago
+    startTime: new Date(now.getTime() - 118 * 60000),
+    endTime:   new Date(now.getTime() -  60 * 60000),
     administeredBy: '',
     rateHistory: [
-      {
-        timestamp: new Date(now.getTime() - 50 * 60000),
-        rate: 0.3
-      },
-      {
-        timestamp: new Date(now.getTime() - 40 * 60000),
-        rate: 0.4
-      },
-      {
-        timestamp: new Date(now.getTime() - 30 * 60000),
-        rate: 0.2
-      }
+      { timestamp: new Date(now.getTime() - 118 * 60000), rate: 0.3 },
+      { timestamp: new Date(now.getTime() -  95 * 60000), rate: 0.4 },
+      { timestamp: new Date(now.getTime() -  80 * 60000), rate: 0.2 },
     ]
   };
   cris.push(propofolCRI);
-  
-  // Lactated Ringers - started at beginning and still running
+
+  // Lactated Ringers — started at induction (T-120), still running; rate cut at T-70
   const fluidsCRI: AnesthesiaCRI = {
     id: `cri-${patientId}-4`,
     name: 'Lactated Ringers',
-    rate: 10,
+    rate: 5,
     unit: 'mL/kg/hr',
-    startTime: new Date(now.getTime() - 58 * 60000), // Started 58 minutes ago
+    startTime: new Date(now.getTime() - 120 * 60000),
     administeredBy: '',
     rateHistory: [
-      {
-        timestamp: new Date(now.getTime() - 58 * 60000),
-        rate: 10
-      },
-      {
-        timestamp: new Date(now.getTime() - 35 * 60000),
-        rate: 5
-      }
+      { timestamp: new Date(now.getTime() - 120 * 60000), rate: 10 },
+      { timestamp: new Date(now.getTime() -  70 * 60000), rate: 5  },
     ]
   };
   cris.push(fluidsCRI);
-  
-  // Fentanyl CRI - started 25 minutes ago and still running
+
+  // Fentanyl CRI — added at T-60 when Propofol CRI was stopped, still running
   const fentanylCRI: AnesthesiaCRI = {
     id: `cri-${patientId}-5`,
     name: 'Fentanyl',
-    rate: 5,
+    rate: 7,
     unit: 'mcg/kg/hr',
-    startTime: new Date(now.getTime() - 25 * 60000), // Started 25 minutes ago
+    startTime: new Date(now.getTime() - 60 * 60000),
     administeredBy: '',
     rateHistory: [
-      {
-        timestamp: new Date(now.getTime() - 25 * 60000),
-        rate: 5
-      },
-      {
-        timestamp: new Date(now.getTime() - 10 * 60000),
-        rate: 7
-      }
+      { timestamp: new Date(now.getTime() - 60 * 60000), rate: 5 },
+      { timestamp: new Date(now.getTime() - 25 * 60000), rate: 7 },
     ]
   };
   cris.push(fentanylCRI);
-  
+
   return cris;
 };
 
