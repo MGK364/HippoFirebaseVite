@@ -1,5 +1,5 @@
 import React, { useRef, useState, useEffect, useImperativeHandle, useMemo } from 'react';
-import { Typography, Button, Box, Paper, useTheme, alpha, IconButton, Collapse } from '@mui/material';
+import { Typography, Button, Box, Paper, useTheme, alpha, IconButton, Collapse, Tooltip } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
 import KeyboardArrowDownIcon from '@mui/icons-material/KeyboardArrowDown';
 import {
@@ -11,6 +11,8 @@ import {
   Tooltip as RechartsTooltip,
   ResponsiveContainer,
   ReferenceLine,
+  AreaChart,
+  Area,
 } from 'recharts';
 import { toPng } from 'html-to-image';
 import { VitalSign, Event } from '../types';
@@ -60,6 +62,16 @@ const PARAMS = {
   o2:    { label: 'O₂',    unit: 'L/min', color: '#0288D1' },
   vapor: { label: 'Vapor',  unit: '%',    color: '#8E24AA' },
 };
+
+// ─── Module-level DataPoint types ────────────────────────────────────────────
+// Defined at module level so SpO2Strip and ColumnGrid can reference them.
+
+export type DataPoint = {
+  x: number; y: number; unit: string; name: string;
+  vitalSignId: string; voided: boolean; edited: boolean;
+};
+
+export type VaporPoint = DataPoint & { agent: string };
 
 // ─── Custom SVG Shapes ────────────────────────────────────────────────────────
 // Recharts injects cx, cy, fill via React.cloneElement — no hooks used here.
@@ -117,21 +129,17 @@ const RRShape = (props: any) => {
   );
 };
 
-/**
- * Pixels per Y-axis unit — used to compute the BP range connector line height.
- * Chart: height 420, top margin 20, bottom margin 24, Y domain 0–200.
- */
-const BP_PX_PER_UNIT = (420 - 20 - 24) / 200; // 1.88 px per unit
-
 /** Systolic BP — hollow upward triangle with faint range line down to diastolic */
 const SysBPShape = (props: any) => {
   const { cx, cy, fill, payload } = props;
   if (cx == null || cy == null) return null;
   const pts = `${cx},${cy - 6} ${cx - 5},${cy + 4} ${cx + 5},${cy + 4}`;
-  // Height of the BP range connector (sys→dia), or 0 if unavailable / inverted
+  // pxPerUnit is injected into each data point after the Y-domain is computed,
+  // so the connector line scales correctly with the autoscaled axis.
+  const pxPerUnit: number = payload?.pxPerUnit ?? 1.88; // 1.88 = fallback for 0–200 domain
   const rangeH =
     payload?.diaValue != null && payload.y > payload.diaValue
-      ? (payload.y - payload.diaValue) * BP_PX_PER_UNIT
+      ? (payload.y - payload.diaValue) * pxPerUnit
       : 0;
   if (payload?.voided) {
     return (
@@ -202,45 +210,6 @@ const CrossShape = (props: any) => {
   );
 };
 
-/** SpO₂ — 4-diagonal asterisk */
-const StarShape = (props: any) => {
-  const { cx, cy, fill, payload } = props;
-  if (cx == null || cy == null) return null;
-  const r = 6;
-  if (payload?.voided) {
-    return (
-      <g opacity={0.3}>
-        {[0, 45, 90, 135].map((deg) => {
-          const rad = (deg * Math.PI) / 180;
-          return (
-            <line key={deg}
-              x1={cx + r * Math.cos(rad)} y1={cy + r * Math.sin(rad)}
-              x2={cx - r * Math.cos(rad)} y2={cy - r * Math.sin(rad)}
-              stroke={fill} strokeWidth={2.5} strokeLinecap="round" strokeDasharray="2 2"
-            />
-          );
-        })}
-        <VoidStrike cx={cx} cy={cy} />
-      </g>
-    );
-  }
-  return (
-    <g>
-      {[0, 45, 90, 135].map((deg) => {
-        const rad = (deg * Math.PI) / 180;
-        return (
-          <line key={deg}
-            x1={cx + r * Math.cos(rad)} y1={cy + r * Math.sin(rad)}
-            x2={cx - r * Math.cos(rad)} y2={cy - r * Math.sin(rad)}
-            stroke={fill} strokeWidth={2.5} strokeLinecap="round"
-          />
-        );
-      })}
-      {payload?.edited && <EditDot cx={cx} cy={cy} />}
-    </g>
-  );
-};
-
 /** ETCO₂ — filled diamond */
 const ETCO2Shape = (props: any) => {
   const { cx, cy, fill, payload } = props;
@@ -264,15 +233,13 @@ const ETCO2Shape = (props: any) => {
 
 // ─── Full Snapshot Tooltip ────────────────────────────────────────────────────
 // Defined at module level (no MUI, no hooks) so Recharts can invoke it safely.
-// Receives allVitalSigns, species, and inductionTime via the render-prop pattern
-// used at the call-site.
+// Receives allVitalSigns and species via the render-prop pattern used at the call-site.
 
 interface FullSnapshotTooltipProps {
   active?: boolean;
   payload?: any[];
   allVitalSigns: VitalSign[];
   species: string | undefined;
-  inductionTime: Date | null;
 }
 
 const FullSnapshotTooltip = ({
@@ -280,7 +247,6 @@ const FullSnapshotTooltip = ({
   payload,
   allVitalSigns,
   species,
-  inductionTime,
 }: FullSnapshotTooltipProps) => {
   if (!active || !payload?.length) return null;
   const point = payload[0]?.payload;
@@ -291,26 +257,11 @@ const FullSnapshotTooltip = ({
   if (!vs) return null;
 
   const ts = vs.timestamp instanceof Date ? vs.timestamp : new Date(vs.timestamp);
-  const timeStr = ts.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-
-  // T+elapsed since induction (if known)
-  let elapsedStr: string | null = null;
-  if (inductionTime) {
-    const elapsedMs = ts.getTime() - inductionTime.getTime();
-    if (elapsedMs >= 0) {
-      const totalSec = Math.floor(elapsedMs / 1000);
-      const h = Math.floor(totalSec / 3600);
-      const m = Math.floor((totalSec % 3600) / 60);
-      const s = totalSec % 60;
-      elapsedStr = h > 0
-        ? `T+${h}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`
-        : `T+${m}:${String(s).padStart(2, '0')}`;
-    }
-  }
+  const timeStr = ts.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
   // Celsius → Fahrenheit for range check
   const tempF =
-    vs.temperature != null
+    vs.temperature != null && vs.temperature > 10
       ? Math.round(((vs.temperature * 9) / 5 + 32) * 10) / 10
       : null;
 
@@ -390,29 +341,15 @@ const FullSnapshotTooltip = ({
         minWidth: 188,
       }}
     >
-      {/* Header: wall-clock time + T+elapsed */}
+      {/* Header: wall-clock time */}
       <div
         style={{
-          display: 'flex',
-          alignItems: 'baseline',
-          gap: 8,
           marginBottom: 7,
           borderBottom: '1px solid rgba(255,255,255,0.1)',
           paddingBottom: 6,
         }}
       >
         <span style={{ fontWeight: 700, fontSize: '0.8rem' }}>{timeStr}</span>
-        {elapsedStr && (
-          <span
-            style={{
-              fontSize: '0.64rem',
-              color: 'rgba(255,255,255,0.45)',
-              fontFamily: '"Roboto Mono", monospace',
-            }}
-          >
-            {elapsedStr}
-          </span>
-        )}
       </div>
 
       {/* Vital parameter rows */}
@@ -481,16 +418,470 @@ const FullSnapshotTooltip = ({
             paddingTop: 5,
           }}
         >
-          \u270F Edited
+          ✏ Edited
         </div>
       )}
     </div>
   );
 };
 
+// ─── SpO₂ Strip Chart ─────────────────────────────────────────────────────────
+// A narrow AreaChart pinned to 84–101% showing the SpO₂ trend below the main
+// scatter chart.  Dots are colored by range status (green / amber / red).
+// Reference lines mark the 95% warning threshold and 90% critical threshold.
+
+interface SpO2StripProps {
+  spo2Data: DataPoint[];
+  xMin: number;
+  xMax: number;
+  species?: string;
+  onVitalSignClick?: (vs: VitalSign) => void;
+  vitalSigns: VitalSign[];
+}
+
+const SpO2Strip: React.FC<SpO2StripProps> = ({
+  spo2Data, xMin, xMax, species, onVitalSignClick, vitalSigns,
+}) => {
+  const theme = useTheme();
+
+  if (!spo2Data.length) return null;
+
+  return (
+    <Box
+      sx={{
+        position: 'relative',
+        borderTop: '1px solid',
+        borderColor: 'divider',
+        mt: 0,
+        pt: '2px',
+      }}
+    >
+      {/* Parameter label — aligned with chart's Y-axis label area */}
+      <Box
+        sx={{
+          position: 'absolute',
+          left: 4,
+          top: '50%',
+          transform: 'translateY(-50%)',
+          zIndex: 1,
+          width: `${PLOT_AREA_LEFT - 8}px`,
+          textAlign: 'right',
+          pr: 1,
+          pointerEvents: 'none',
+        }}
+      >
+        <Typography
+          variant="caption"
+          sx={{ color: PARAMS.spo2.color, fontWeight: 700, fontSize: '0.65rem', lineHeight: 1.1 }}
+        >
+          SpO₂ %
+        </Typography>
+      </Box>
+
+      <ResponsiveContainer width="100%" height={80}>
+        <AreaChart
+          data={spo2Data}
+          margin={{ top: 6, right: CHART_RIGHT_MARGIN, bottom: 4, left: CHART_LEFT_MARGIN }}
+        >
+          <defs>
+            <linearGradient id="spo2AreaGradient" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="5%"  stopColor={PARAMS.spo2.color} stopOpacity={0.22} />
+              <stop offset="95%" stopColor={PARAMS.spo2.color} stopOpacity={0.02} />
+            </linearGradient>
+          </defs>
+
+          <XAxis
+            dataKey="x"
+            type="number"
+            scale="time"
+            domain={[xMin, xMax]}
+            hide
+          />
+
+          <YAxis
+            dataKey="y"
+            type="number"
+            domain={[84, 101]}
+            ticks={[85, 90, 95, 100]}
+            tick={{ fontSize: 9 }}
+            width={YAXIS_WIDTH}
+          />
+
+          <CartesianGrid
+            strokeDasharray="3 3"
+            stroke={theme.palette.divider}
+            vertical={false}
+          />
+
+          {/* Warning threshold — 95% */}
+          <ReferenceLine
+            y={95}
+            stroke="#FF9800"
+            strokeDasharray="4 3"
+            strokeWidth={1}
+            label={{ value: '95', position: 'insideBottomLeft', fontSize: 8, fill: '#FF9800', dx: 2, dy: -2 }}
+          />
+
+          {/* Critical threshold — 90% */}
+          <ReferenceLine
+            y={90}
+            stroke="#F44336"
+            strokeDasharray="4 3"
+            strokeWidth={1}
+            label={{ value: '90', position: 'insideBottomLeft', fontSize: 8, fill: '#F44336', dx: 2, dy: -2 }}
+          />
+
+          <Area
+            type="monotone"
+            dataKey="y"
+            stroke={PARAMS.spo2.color}
+            strokeWidth={1.5}
+            fill="url(#spo2AreaGradient)"
+            isAnimationActive={false}
+            dot={(dotProps: any) => {
+              const { cx, cy, payload } = dotProps;
+              if (cx == null || cy == null) return <g key={cx} />;
+              const status = getRangeStatus('spo2', payload.y, species);
+              const dc = RANGE_COLORS[status];
+              return (
+                <circle
+                  key={payload.x}
+                  cx={cx}
+                  cy={cy}
+                  r={3.5}
+                  fill={dc}
+                  stroke="white"
+                  strokeWidth={1}
+                  style={{ cursor: onVitalSignClick ? 'pointer' : undefined }}
+                  onClick={() => {
+                    const vs = vitalSigns.find((v) => v.id === payload.vitalSignId);
+                    if (vs && onVitalSignClick) onVitalSignClick(vs);
+                  }}
+                />
+              );
+            }}
+            activeDot={{ r: 5, stroke: PARAMS.spo2.color, fill: 'white', strokeWidth: 2 }}
+          />
+
+          {/* Simple tooltip for the SpO₂ strip */}
+          <RechartsTooltip
+            content={(props: any) => {
+              if (!props.active || !props.payload?.length) return null;
+              const d = props.payload[0]?.payload;
+              if (!d) return null;
+              const status = getRangeStatus('spo2', d.y, species);
+              return (
+                <div
+                  style={{
+                    background: 'rgba(10,20,45,0.92)',
+                    color: '#fff',
+                    padding: '5px 9px',
+                    borderRadius: 4,
+                    fontSize: '0.72rem',
+                    pointerEvents: 'none',
+                    whiteSpace: 'nowrap',
+                  }}
+                >
+                  <span style={{ color: RANGE_COLORS[status], fontWeight: 700 }}>
+                    SpO₂: {d.y}%
+                  </span>
+                  <span style={{ color: 'rgba(255,255,255,0.5)', marginLeft: 8, fontSize: '0.65rem' }}>
+                    {new Date(d.x).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                  </span>
+                </div>
+              );
+            }}
+            cursor={{ stroke: alpha(PARAMS.spo2.color, 0.35), strokeWidth: 1, strokeDasharray: '3 3' }}
+          />
+        </AreaChart>
+      </ResponsiveContainer>
+    </Box>
+  );
+};
+
+// ─── Timeline-Aligned Row Grid (Temp / O₂ / Vapor) ───────────────────────────
+// Values are positioned proportionally along the same X-axis domain as the main
+// scatter chart above.  The label column is exactly PLOT_AREA_LEFT wide so its
+// right edge lines up with the chart's Y-axis.  Each value pill is placed at
+//   left = (timestamp − xMin) / (xMax − xMin) × 100%
+// within a position:relative plot area, centering the pill on the data point.
+// overflow:hidden clips any pill that falls outside the visible time range.
+
+const GRID_ROW_H = 26; // px — height of each data row
+
+interface ColumnGridProps {
+  tempData:   DataPoint[];
+  o2Data:     DataPoint[];
+  vaporData:  VaporPoint[];
+  vitalSigns: VitalSign[];
+  onVitalSignClick?: (vs: VitalSign) => void;
+  xMin: number;
+  xMax: number;
+}
+
+const ColumnGrid: React.FC<ColumnGridProps> = ({
+  tempData, o2Data, vaporData, vitalSigns, onVitalSignClick, xMin, xMax,
+}) => {
+  const theme = useTheme();
+
+  const range = xMax - xMin || 1; // guard against divide-by-zero
+  const pct = (ts: number) => ((ts - xMin) / range) * 100;
+
+  const handleClick = (vitalSignId: string) => {
+    if (!onVitalSignClick) return;
+    const vs = vitalSigns.find((v) => v.id === vitalSignId);
+    if (vs) onVitalSignClick(vs);
+  };
+
+  const ROWS: {
+    label: string;
+    color: string;
+    data: DataPoint[];
+    fmt: (pt: DataPoint) => string;
+    /** Minimum ms between time-based label pills */
+    minLabelMs: number;
+    /** If true, also force a pill whenever the value (or agent) changes */
+    showOnChange: boolean;
+  }[] = [
+    {
+      label: 'Temp °F',
+      color: PARAMS.temp.color,
+      data: tempData,
+      fmt: (pt) => `${pt.y}°`,
+      // Show every ~15 min: with 5-min readings every 3rd point gets a pill.
+      minLabelMs: 14 * 60 * 1000,
+      showOnChange: false,
+    },
+    {
+      label: 'O₂ L/min',
+      color: PARAMS.o2.color,
+      data: o2Data,
+      fmt: (pt) => `${pt.y}`,
+      // 30-min baseline, plus a pill whenever the flow rate changes.
+      minLabelMs: 29 * 60 * 1000,
+      showOnChange: true,
+    },
+    {
+      label: 'Vapor %',
+      color: PARAMS.vapor.color,
+      data: vaporData as DataPoint[],
+      fmt: (pt) => `${pt.y}%`,
+      // 30-min baseline, plus a pill whenever the % or agent changes.
+      minLabelMs: 29 * 60 * 1000,
+      showOnChange: true,
+    },
+  ];
+
+  const hasData = ROWS.some((r) => r.data.length > 0);
+  if (!hasData) return null;
+
+  return (
+    <Box sx={{ borderTop: '1px solid', borderColor: 'divider', mt: 0 }}>
+      {ROWS.map((row, rowIdx) => {
+        if (!row.data.length) return null;
+
+        // Decide which points get a label pill vs a small dot.
+        // A pill appears when:
+        //   (a) enough time has elapsed since the last pill (minLabelMs), OR
+        //   (b) the value (or vaporizer agent) changed since the last pill (showOnChange rows only).
+        // Resetting lastLabelX on every pill keeps the interval relative to the most recent label.
+        let lastLabelX   = -Infinity;
+        let lastLabelY: number | null = null;
+        let lastLabelAgent: string | null = null;
+
+        const annotated = row.data
+          .filter((pt) => !pt.voided)
+          .map((pt) => {
+            const timeElapsed   = pt.x - lastLabelX >= row.minLabelMs;
+            const valueChanged  = row.showOnChange && (
+              lastLabelY === null ||
+              pt.y !== lastLabelY ||
+              // Vapor: also fire when the agent name switches
+              (row.label === 'Vapor %' && (pt as VaporPoint).agent !== lastLabelAgent)
+            );
+            const showPill = timeElapsed || valueChanged;
+            if (showPill) {
+              lastLabelX     = pt.x;
+              lastLabelY     = pt.y;
+              lastLabelAgent = row.label === 'Vapor %' ? ((pt as VaporPoint).agent ?? null) : null;
+            }
+            return { pt, showPill };
+          });
+
+        return (
+          <Box
+            key={row.label}
+            sx={{
+              display: 'flex',
+              height: GRID_ROW_H,
+              alignItems: 'center',
+              borderTop: rowIdx > 0 ? '1px solid' : 'none',
+              borderColor: 'divider',
+            }}
+          >
+            {/* Label column — width matches PLOT_AREA_LEFT so it aligns with the Y-axis */}
+            <Box
+              sx={{
+                flexShrink: 0,
+                width: PLOT_AREA_LEFT,
+                height: '100%',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'flex-end',
+                pr: 1,
+                borderRight: '1px solid',
+                borderColor: 'divider',
+                backgroundColor: alpha(theme.palette.background.paper, 1),
+              }}
+            >
+              <Typography
+                variant="caption"
+                sx={{ fontSize: '0.61rem', fontWeight: 700, color: row.color, whiteSpace: 'nowrap' }}
+              >
+                {row.label}
+              </Typography>
+            </Box>
+
+            {/* Plot area — values positioned proportionally along the time axis */}
+            <Box
+              sx={{
+                flexGrow: 1,
+                position: 'relative',
+                height: '100%',
+                overflow: 'hidden',
+                pr: `${CHART_RIGHT_MARGIN}px`,
+              }}
+            >
+              {annotated.map(({ pt, showPill }) => {
+                const timeStr = new Date(pt.x).toLocaleTimeString([], {
+                  hour: '2-digit', minute: '2-digit',
+                });
+
+                // ── Tooltip panel — mirrors FullSnapshotTooltip exactly ─────────
+                const tipContent = (
+                  <Box sx={{ p: '10px 13px', minWidth: 150, pointerEvents: 'none' }}>
+                    {/* Time header */}
+                    <Box
+                      sx={{
+                        display: 'flex',
+                        alignItems: 'baseline',
+                        gap: 1,
+                        mb: '7px',
+                        pb: '6px',
+                        borderBottom: '1px solid rgba(255,255,255,0.1)',
+                      }}
+                    >
+                      <span style={{ fontWeight: 700, fontSize: '0.8rem' }}>{timeStr}</span>
+                    </Box>
+                    {/* Value row */}
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: '6px', mb: '2px' }}>
+                      {/* Status dot in the row's colour */}
+                      <Box
+                        sx={{
+                          width: 7, height: 7, borderRadius: '50%',
+                          backgroundColor: row.color, flexShrink: 0,
+                        }}
+                      />
+                      <span style={{ color: 'rgba(255,255,255,0.5)', minWidth: 46, fontSize: '0.67rem' }}>
+                        {row.label}
+                      </span>
+                      <span style={{ marginLeft: 'auto', paddingLeft: 10, fontWeight: 600, fontSize: '0.72rem' }}>
+                        {row.fmt(pt)}
+                      </span>
+                    </Box>
+                  </Box>
+                );
+
+                // Shared Tooltip props — dark panel identical to the main chart tooltip
+                const sharedTooltipProps = {
+                  title: tipContent,
+                  placement: 'top' as const,
+                  arrow: true,
+                  enterDelay: 120,
+                  enterNextDelay: 80,
+                  slotProps: {
+                    tooltip: {
+                      sx: {
+                        bgcolor: 'rgba(10, 20, 45, 0.96)',
+                        color: '#fff',
+                        p: 0,
+                        borderRadius: '6px',
+                        boxShadow: '0 4px 18px rgba(0,0,0,0.5)',
+                        fontSize: '0.72rem',
+                        lineHeight: 1.65,
+                        maxWidth: 260,
+                      },
+                    },
+                    arrow: { sx: { color: 'rgba(10, 20, 45, 0.96)' } },
+                  },
+                };
+
+                return showPill ? (
+                  /* Full label pill — shown at interval threshold OR on value change */
+                  <Tooltip key={pt.x} {...sharedTooltipProps}>
+                    <Box
+                      onClick={() => handleClick(pt.vitalSignId)}
+                      sx={{
+                        position: 'absolute',
+                        left: `${pct(pt.x)}%`,
+                        top: '50%',
+                        transform: 'translate(-50%, -50%)',
+                        cursor: onVitalSignClick ? 'pointer' : undefined,
+                        px: '3px',
+                        py: '1px',
+                        borderRadius: '3px',
+                        backgroundColor: alpha(row.color, 0.09),
+                        border: `1px solid ${alpha(row.color, 0.25)}`,
+                        '&:hover': { backgroundColor: alpha(row.color, 0.2), borderColor: alpha(row.color, 0.55) },
+                        transition: 'background-color 0.12s',
+                        whiteSpace: 'nowrap',
+                        lineHeight: 1,
+                      }}
+                    >
+                      <Typography
+                        component="span"
+                        sx={{ fontSize: '0.61rem', fontWeight: 700, color: row.color, lineHeight: 1 }}
+                      >
+                        {row.fmt(pt)}
+                      </Typography>
+                    </Box>
+                  </Tooltip>
+                ) : (
+                  /* Small dot — tooltip is the only way to read the value */
+                  <Tooltip key={pt.x} {...sharedTooltipProps}>
+                    <Box
+                      onClick={() => handleClick(pt.vitalSignId)}
+                      sx={{
+                        position: 'absolute',
+                        left: `${pct(pt.x)}%`,
+                        top: '50%',
+                        transform: 'translate(-50%, -50%)',
+                        width: 6,
+                        height: 6,
+                        borderRadius: '50%',
+                        backgroundColor: alpha(row.color, 0.45),
+                        cursor: 'pointer',
+                        '&:hover': {
+                          backgroundColor: row.color,
+                          transform: 'translate(-50%, -50%) scale(1.5)',
+                        },
+                        transition: 'background-color 0.12s, transform 0.12s',
+                      }}
+                    />
+                  </Tooltip>
+                );
+              })}
+            </Box>
+          </Box>
+        );
+      })}
+    </Box>
+  );
+};
+
 // ─── Mini Symbol (legend) ─────────────────────────────────────────────────────
 
-type ShapeKey = 'circle' | 'circle-open' | 'triangle-up-open' | 'triangle-down-open' | 'cross' | 'star' | 'diamond';
+type ShapeKey = 'circle' | 'circle-open' | 'triangle-up-open' | 'triangle-down-open' | 'cross' | 'diamond' | 'spo2-strip';
 
 const MiniSymbol: React.FC<{ shape: ShapeKey; color: string }> = ({ shape, color }) => {
   const cx = 8, cy = 8;
@@ -510,38 +901,25 @@ const MiniSymbol: React.FC<{ shape: ShapeKey; color: string }> = ({ shape, color
           <rect x={cx - 6} y={cy - 1.5} width={12} height={3} />
         </g>
       );
-    case 'star': {
-      const r = 6;
-      return (
-        <g>
-          {[0, 45, 90, 135].map((deg) => {
-            const rad = (deg * Math.PI) / 180;
-            return (
-              <line key={deg}
-                x1={cx + r * Math.cos(rad)} y1={cy + r * Math.sin(rad)}
-                x2={cx - r * Math.cos(rad)} y2={cy - r * Math.sin(rad)}
-                stroke={color} strokeWidth={2.5} strokeLinecap="round"
-              />
-            );
-          })}
-        </g>
-      );
-    }
     case 'diamond':
       return <polygon points={`${cx},${cy - 6} ${cx + 5},${cy} ${cx},${cy + 6} ${cx - 5},${cy}`} fill={color} />;
+    case 'spo2-strip':
+      // A short horizontal line to represent the strip chart
+      return <line x1={2} y1={cy} x2={14} y2={cy} stroke={color} strokeWidth={2} strokeLinecap="round" />;
     default:
       return <circle cx={cx} cy={cy} r={5} fill={color} />;
   }
 };
 
 const LEGEND_ITEMS: { shape: ShapeKey; param: keyof typeof PARAMS }[] = [
-  { shape: 'circle',        param: 'hr'    },
-  { shape: 'circle-open',  param: 'rr'    },
-  { shape: 'triangle-up-open',   param: 'sysBP' },
-  { shape: 'triangle-down-open', param: 'diaBP' },
-  { shape: 'cross',        param: 'map'   },
-  { shape: 'star',         param: 'spo2'  },
-  { shape: 'diamond',      param: 'etco2' },
+  { shape: 'circle',              param: 'hr'    },
+  { shape: 'circle-open',         param: 'rr'    },
+  { shape: 'triangle-up-open',    param: 'sysBP' },
+  { shape: 'triangle-down-open',  param: 'diaBP' },
+  { shape: 'cross',               param: 'map'   },
+  { shape: 'diamond',             param: 'etco2' },
+  // SpO₂ is no longer in the main scatter chart — shown in the strip below
+  { shape: 'spo2-strip',          param: 'spo2'  },
 ];
 
 // ─── Event reference line tooltip ────────────────────────────────────────────
@@ -655,11 +1033,6 @@ export const VitalSignsChart = ({
   // ── Helpers ───────────────────────────────────────────────────────────────
   const toF = (c: number) => Math.round(((c * 9) / 5 + 32) * 10) / 10;
 
-  type DataPoint = {
-    x: number; y: number; unit: string; name: string;
-    vitalSignId: string; voided: boolean; edited: boolean;
-  };
-
   const makePoints = (
     fn: (vs: VitalSign) => number | null | undefined,
     unit: string,
@@ -681,33 +1054,73 @@ export const VitalSignsChart = ({
       .sort((a, b) => a.x - b.x);
 
   // ── Data sets ─────────────────────────────────────────────────────────────
-  const hrData    = makePoints((vs) => vs.heartRate,               'bpm',  'Heart Rate');
-  const rrData    = makePoints((vs) => vs.respiratoryRate,         'bpm',  'Resp Rate');
-  const sysBPData = makePoints((vs) => vs.bloodPressure?.systolic, 'mmHg', 'Systolic BP')
+  // 0 is used as a sentinel value when a field was left blank on entry — filter these out.
+  const hrData    = makePoints((vs) => (vs.heartRate > 0 ? vs.heartRate : null),                       'bpm',  'Heart Rate');
+  const rrData    = makePoints((vs) => (vs.respiratoryRate > 0 ? vs.respiratoryRate : null),           'bpm',  'Resp Rate');
+
+  // Build sysBP base (diaValue only) — pxPerUnit is added after the domain is computed
+  const sysBPBase = makePoints((vs) => (vs.bloodPressure?.systolic  > 0 ? vs.bloodPressure.systolic  : null), 'mmHg', 'Systolic BP')
     .map((pt) => {
-      // Attach the diastolic value so SysBPShape can draw the faint range connector
       const matchVs = vitalSigns.find((vs) => {
         const ts = vs.timestamp instanceof Date ? vs.timestamp : new Date(vs.timestamp);
         return ts.getTime() === pt.x;
       });
       return { ...pt, diaValue: matchVs?.bloodPressure?.diastolic ?? null };
     });
-  const diaBPData = makePoints((vs) => vs.bloodPressure?.diastolic,'mmHg', 'Diastolic BP');
-  const mapData   = makePoints((vs) => vs.bloodPressure?.mean ?? null, 'mmHg', 'MAP');
+  const diaBPData = makePoints((vs) => (vs.bloodPressure?.diastolic > 0 ? vs.bloodPressure.diastolic : null), 'mmHg', 'Diastolic BP');
+  const mapData   = makePoints((vs) => (vs.bloodPressure?.mean  != null && vs.bloodPressure.mean  > 0 ? vs.bloodPressure.mean  : null), 'mmHg', 'MAP');
+
+  // SpO₂ — now shown in the dedicated strip chart below (NOT the main scatter)
   const spo2Data  = makePoints(
     (vs) => (vs.oxygenSaturation > 0 ? vs.oxygenSaturation : null),
     '%', 'SpO₂',
   );
-  const etco2Data = makePoints((vs) => vs.etCO2, 'mmHg', 'ETCO₂');
-  // Text-row data: not plotted on the scatter chart — shown as timestamped readings below
-  const tempData  = makePoints((vs) => toF(vs.temperature), '°F', 'Temp');
+
+  const etco2Data = makePoints((vs) => (vs.etCO2 != null && vs.etCO2 > 0 ? vs.etCO2 : null), 'mmHg', 'ETCO₂');
+
+  // ── Autoscale Y domain ────────────────────────────────────────────────────
+  // Gather every Y value plotted on the main scatter chart (SpO₂ lives on its
+  // own strip chart and is excluded). Pad by 10 % of the spread (min 10 units),
+  // then snap to multiples of 5 so tick labels stay clean.
+  const CHART_H    = 420;
+  const MARGIN_TOP = 20;
+  const MARGIN_BOT = 24;
+
+  const allMainY = [
+    ...hrData, ...rrData, ...sysBPBase, ...diaBPData, ...mapData, ...etco2Data,
+  ].map((p) => p.y);
+
+  let yMin = 0, yMax = 200;
+  if (allMainY.length > 0) {
+    const rawMin = Math.min(...allMainY);
+    const rawMax = Math.max(...allMainY);
+    const pad    = Math.max(10, Math.round((rawMax - rawMin) * 0.1));
+    yMin = Math.max(0, Math.floor((rawMin - pad) / 5) * 5);
+    yMax = Math.ceil((rawMax + pad) / 5) * 5;
+  }
+
+  const yRange      = yMax - yMin || 1;
+  const yPxPerUnit  = (CHART_H - MARGIN_TOP - MARGIN_BOT) / yRange;
+
+  // Tick step: 5 for a narrow range, 10, 25, or 50 for wider spreads
+  const tickStep = yRange <= 50 ? 5 : yRange <= 100 ? 10 : yRange <= 250 ? 25 : 50;
+  const yTicks: number[] = [];
+  for (let t = Math.ceil(yMin / tickStep) * tickStep; t <= yMax; t += tickStep) {
+    yTicks.push(t);
+  }
+
+  // Inject pxPerUnit into sysBP points so SysBPShape draws the connector correctly
+  const sysBPData = sysBPBase.map((pt) => ({ ...pt, pxPerUnit: yPxPerUnit }));
+
+  // Temp: temperature === 0 is a sentinel for "not recorded this interval"
+  const tempData  = makePoints(
+    (vs) => (vs.temperature > 10 ? toF(vs.temperature) : null),
+    '°F', 'Temp',
+  );
+
   const o2Data    = makePoints((vs) => vs.o2FlowRate ?? null, 'L/min', 'O₂ Flow');
 
   // Vaporizer: need agent name + percent — build a special data set
-  type VaporPoint = {
-    x: number; y: number; unit: string; name: string; agent: string;
-    vitalSignId: string; voided: boolean; edited: boolean;
-  };
   const vaporData: VaporPoint[] = vitalSigns
     .map((vs): VaporPoint | null => {
       const ts = vs.timestamp instanceof Date ? vs.timestamp : new Date(vs.timestamp);
@@ -758,6 +1171,7 @@ export const VitalSignsChart = ({
     if (t.includes('extubation'))                                                       return 'EXT';
     if (t.includes('surgery start'))                                                    return 'S.ST';
     if (t.includes('surgery end'))                                                      return 'S.EN';
+    if (t.includes('desaturation') || t.includes('spo'))                               return 'SpO₂';
     // Generic fallback — shorten the type name
     if (ev.type === 'Checkpoint') return 'CHK';
     if (ev.type === 'Procedure')  return 'PRO';
@@ -816,14 +1230,8 @@ export const VitalSignsChart = ({
     return d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
   };
 
-  // ── Induction time (used by FullSnapshotTooltip for T+ elapsed display) ──
-  const inductionTime = useMemo((): Date | null => {
-    const ev = events.find(
-      (e) => e.type === 'Checkpoint' && e.title.toLowerCase().includes('induction'),
-    );
-    if (!ev) return null;
-    return ev.timestamp instanceof Date ? ev.timestamp : new Date(ev.timestamp);
-  }, [events]);
+  // ── Grid data presence ────────────────────────────────────────────────────
+  const hasGridData = tempData.length > 0 || o2Data.length > 0 || vaporData.length > 0;
 
   return (
     <>
@@ -885,7 +1293,8 @@ export const VitalSignsChart = ({
         </Typography>
       ) : (
         <>
-          {/* ── Main scatter chart ─────────────────────────────────────────── */}
+          {/* ── Main scatter chart (HR, RR, BP, MAP, ETCO₂) ─────────────── */}
+          {/* SpO₂ has been moved to the dedicated strip chart below.         */}
           <ResponsiveContainer width="100%" height={420}>
             <ScatterChart margin={{ top: 20, right: CHART_RIGHT_MARGIN, bottom: 24, left: CHART_LEFT_MARGIN }}>
               <CartesianGrid strokeDasharray="3 3" stroke={theme.palette.divider} />
@@ -900,12 +1309,12 @@ export const VitalSignsChart = ({
                 ticks={fiveMinTicks}
               />
 
-              {/* Single Y-axis — numeric scale, no label */}
+              {/* Single Y-axis — autoscaled to the visible data */}
               <YAxis
                 type="number"
                 dataKey="y"
-                domain={[0, 200]}
-                ticks={[0, 25, 50, 75, 100, 125, 150, 175, 200]}
+                domain={[yMin, yMax]}
+                ticks={yTicks}
                 tick={{ fontSize: 11 }}
                 width={YAXIS_WIDTH}
               />
@@ -919,237 +1328,46 @@ export const VitalSignsChart = ({
                     {...props}
                     allVitalSigns={vitalSigns}
                     species={species}
-                    inductionTime={inductionTime}
                   />
                 )}
                 cursor={{ stroke: alpha(theme.palette.primary.main, 0.4), strokeWidth: 1, strokeDasharray: '3 3' }}
               />
 
               {/* ── Data series (clickable) ──────────────────────────── */}
-              <Scatter name="HR (bpm)"       data={hrData}    fill={PARAMS.hr.color}    shape={<CircleShape />}       isAnimationActive={false} onClick={handlePointClick} cursor={onVitalSignClick ? 'pointer' : undefined} />
-              <Scatter name="RR (bpm)"       data={rrData}    fill={PARAMS.rr.color}    shape={<RRShape />}           isAnimationActive={false} onClick={handlePointClick} cursor={onVitalSignClick ? 'pointer' : undefined} />
-              <Scatter name="SysBP (mmHg)"   data={sysBPData} fill={PARAMS.sysBP.color} shape={<SysBPShape />}        isAnimationActive={false} onClick={handlePointClick} cursor={onVitalSignClick ? 'pointer' : undefined} />
-              <Scatter name="DiaBP (mmHg)"   data={diaBPData} fill={PARAMS.diaBP.color} shape={<DiaBPShape />}        isAnimationActive={false} onClick={handlePointClick} cursor={onVitalSignClick ? 'pointer' : undefined} />
+              <Scatter name="HR (bpm)"       data={hrData}    fill={PARAMS.hr.color}    shape={<CircleShape />}  isAnimationActive={false} onClick={handlePointClick} cursor={onVitalSignClick ? 'pointer' : undefined} />
+              <Scatter name="RR (bpm)"       data={rrData}    fill={PARAMS.rr.color}    shape={<RRShape />}      isAnimationActive={false} onClick={handlePointClick} cursor={onVitalSignClick ? 'pointer' : undefined} />
+              <Scatter name="SysBP (mmHg)"   data={sysBPData} fill={PARAMS.sysBP.color} shape={<SysBPShape />}   isAnimationActive={false} onClick={handlePointClick} cursor={onVitalSignClick ? 'pointer' : undefined} />
+              <Scatter name="DiaBP (mmHg)"   data={diaBPData} fill={PARAMS.diaBP.color} shape={<DiaBPShape />}   isAnimationActive={false} onClick={handlePointClick} cursor={onVitalSignClick ? 'pointer' : undefined} />
               {mapData.length > 0 && (
-                <Scatter name="MAP (mmHg)"   data={mapData}   fill={PARAMS.map.color}   shape={<CrossShape />}        isAnimationActive={false} onClick={handlePointClick} cursor={onVitalSignClick ? 'pointer' : undefined} />
+                <Scatter name="MAP (mmHg)"   data={mapData}   fill={PARAMS.map.color}   shape={<CrossShape />}   isAnimationActive={false} onClick={handlePointClick} cursor={onVitalSignClick ? 'pointer' : undefined} />
               )}
-              <Scatter name="SpO₂ (%)"       data={spo2Data}  fill={PARAMS.spo2.color}  shape={<StarShape />}         isAnimationActive={false} onClick={handlePointClick} cursor={onVitalSignClick ? 'pointer' : undefined} />
               {etco2Data.length > 0 && (
-                <Scatter name="ETCO₂ (mmHg)" data={etco2Data} fill={PARAMS.etco2.color} shape={<ETCO2Shape />}        isAnimationActive={false} onClick={handlePointClick} cursor={onVitalSignClick ? 'pointer' : undefined} />
+                <Scatter name="ETCO₂ (mmHg)" data={etco2Data} fill={PARAMS.etco2.color} shape={<ETCO2Shape />}   isAnimationActive={false} onClick={handlePointClick} cursor={onVitalSignClick ? 'pointer' : undefined} />
               )}
             </ScatterChart>
           </ResponsiveContainer>
 
-          {/* ── Temperature row ────────────────────────────────────────────── */}
-          {/* Temp is recorded ~every 15 min; shown as timestamped readings    */}
-          {/* rather than plotted as a data series on the shared numeric axis. */}
-          {tempData.length > 0 && (
-            <Box
-              sx={{
-                position: 'relative',
-                // Indent to align with the chart plot area
-                ml: `${PLOT_AREA_LEFT}px`,
-                mr: `${PLOT_AREA_RIGHT}px`,
-                mt: '-4px',
-                mb: 1,
-                height: 38,
-              }}
-            >
-              {tempData.map((pt) => {
-                const xPct = ((pt.x - xMin) / (xMax - xMin)) * 100;
-                if (xPct < 0 || xPct > 100) return null;
-                return (
-                  <Box
-                    key={pt.x}
-                    onClick={() => {
-                      const vs = vitalSigns.find((v) => v.id === pt.vitalSignId);
-                      if (vs && onVitalSignClick) onVitalSignClick(vs);
-                    }}
-                    sx={{
-                      position: 'absolute',
-                      left: `${xPct}%`,
-                      transform: 'translateX(-50%)',
-                      display: 'flex',
-                      flexDirection: 'column',
-                      alignItems: 'center',
-                      lineHeight: 1.2,
-                      cursor: onVitalSignClick ? 'pointer' : undefined,
-                      opacity: pt.voided ? 0.3 : 1,
-                      textDecoration: pt.voided ? 'line-through' : undefined,
-                      '&:hover': onVitalSignClick ? { opacity: pt.voided ? 0.5 : 0.7 } : {},
-                    }}
-                  >
-                    <Typography
-                      variant="caption"
-                      sx={{ fontWeight: 700, color: PARAMS.temp.color, fontSize: '0.7rem' }}
-                    >
-                      {pt.y}°
-                    </Typography>
-                    <Typography
-                      variant="caption"
-                      sx={{ color: 'text.disabled', fontSize: '0.6rem', whiteSpace: 'nowrap' }}
-                    >
-                      {new Date(pt.x).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                    </Typography>
-                  </Box>
-                );
-              })}
+          {/* ── SpO₂ strip chart (84–101% scale, color-coded dots) ─────── */}
+          <SpO2Strip
+            spo2Data={spo2Data}
+            xMin={xMin}
+            xMax={xMax}
+            species={species}
+            onVitalSignClick={onVitalSignClick}
+            vitalSigns={vitalSigns}
+          />
 
-              {/* "Temp °F" label at far left */}
-              <Typography
-                variant="caption"
-                sx={{
-                  position: 'absolute',
-                  left: `-${PLOT_AREA_LEFT - 4}px`,
-                  top: '50%',
-                  transform: 'translateY(-50%)',
-                  color: PARAMS.temp.color,
-                  fontWeight: 700,
-                  fontSize: '0.65rem',
-                  whiteSpace: 'nowrap',
-                }}
-              >
-                Temp °F
-              </Typography>
-            </Box>
-          )}
-
-          {/* ── O₂ Flow text row ─────────────────────────────────────────── */}
-          {o2Data.length > 0 && (
-            <Box
-              sx={{
-                position: 'relative',
-                ml: `${PLOT_AREA_LEFT}px`,
-                mr: `${PLOT_AREA_RIGHT}px`,
-                mt: '-2px',
-                mb: 1,
-                height: 38,
-              }}
-            >
-              {o2Data.map((pt) => {
-                const xPct = ((pt.x - xMin) / (xMax - xMin)) * 100;
-                if (xPct < 0 || xPct > 100) return null;
-                return (
-                  <Box
-                    key={pt.x}
-                    onClick={() => {
-                      const vs = vitalSigns.find((v) => v.id === pt.vitalSignId);
-                      if (vs && onVitalSignClick) onVitalSignClick(vs);
-                    }}
-                    sx={{
-                      position: 'absolute',
-                      left: `${xPct}%`,
-                      transform: 'translateX(-50%)',
-                      display: 'flex',
-                      flexDirection: 'column',
-                      alignItems: 'center',
-                      lineHeight: 1.2,
-                      cursor: onVitalSignClick ? 'pointer' : undefined,
-                      opacity: pt.voided ? 0.3 : 1,
-                      textDecoration: pt.voided ? 'line-through' : undefined,
-                      '&:hover': onVitalSignClick ? { opacity: pt.voided ? 0.5 : 0.7 } : {},
-                    }}
-                  >
-                    <Typography
-                      variant="caption"
-                      sx={{ fontWeight: 700, color: PARAMS.o2.color, fontSize: '0.7rem' }}
-                    >
-                      {pt.y}
-                    </Typography>
-                    <Typography
-                      variant="caption"
-                      sx={{ color: 'text.disabled', fontSize: '0.6rem', whiteSpace: 'nowrap' }}
-                    >
-                      {new Date(pt.x).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                    </Typography>
-                  </Box>
-                );
-              })}
-              <Typography
-                variant="caption"
-                sx={{
-                  position: 'absolute',
-                  left: `-${PLOT_AREA_LEFT - 4}px`,
-                  top: '50%',
-                  transform: 'translateY(-50%)',
-                  color: PARAMS.o2.color,
-                  fontWeight: 700,
-                  fontSize: '0.65rem',
-                  whiteSpace: 'nowrap',
-                }}
-              >
-                O₂ L/min
-              </Typography>
-            </Box>
-          )}
-
-          {/* ── Vaporizer text row ────────────────────────────────────────── */}
-          {vaporData.length > 0 && (
-            <Box
-              sx={{
-                position: 'relative',
-                ml: `${PLOT_AREA_LEFT}px`,
-                mr: `${PLOT_AREA_RIGHT}px`,
-                mt: '-2px',
-                mb: 1,
-                height: 38,
-              }}
-            >
-              {vaporData.map((pt) => {
-                const xPct = ((pt.x - xMin) / (xMax - xMin)) * 100;
-                if (xPct < 0 || xPct > 100) return null;
-                return (
-                  <Box
-                    key={pt.x}
-                    onClick={() => {
-                      const vs = vitalSigns.find((v) => v.id === pt.vitalSignId);
-                      if (vs && onVitalSignClick) onVitalSignClick(vs);
-                    }}
-                    sx={{
-                      position: 'absolute',
-                      left: `${xPct}%`,
-                      transform: 'translateX(-50%)',
-                      display: 'flex',
-                      flexDirection: 'column',
-                      alignItems: 'center',
-                      lineHeight: 1.2,
-                      cursor: onVitalSignClick ? 'pointer' : undefined,
-                      opacity: pt.voided ? 0.3 : 1,
-                      textDecoration: pt.voided ? 'line-through' : undefined,
-                      '&:hover': onVitalSignClick ? { opacity: pt.voided ? 0.5 : 0.7 } : {},
-                    }}
-                  >
-                    <Typography
-                      variant="caption"
-                      sx={{ fontWeight: 700, color: PARAMS.vapor.color, fontSize: '0.7rem', whiteSpace: 'nowrap' }}
-                    >
-                      {pt.agent} {pt.y}%
-                    </Typography>
-                    <Typography
-                      variant="caption"
-                      sx={{ color: 'text.disabled', fontSize: '0.6rem', whiteSpace: 'nowrap' }}
-                    >
-                      {new Date(pt.x).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                    </Typography>
-                  </Box>
-                );
-              })}
-              <Typography
-                variant="caption"
-                sx={{
-                  position: 'absolute',
-                  left: `-${PLOT_AREA_LEFT - 4}px`,
-                  top: '50%',
-                  transform: 'translateY(-50%)',
-                  color: PARAMS.vapor.color,
-                  fontWeight: 700,
-                  fontSize: '0.65rem',
-                  whiteSpace: 'nowrap',
-                }}
-              >
-                Vapor %
-              </Typography>
-            </Box>
+          {/* ── Timeline row grid: Temp / O₂ Flow / Vaporizer ───────────── */}
+          {hasGridData && (
+            <ColumnGrid
+              tempData={tempData}
+              o2Data={o2Data}
+              vaporData={vaporData}
+              vitalSigns={vitalSigns}
+              onVitalSignClick={onVitalSignClick}
+              xMin={xMin}
+              xMax={xMax}
+            />
           )}
 
           {/* ── Compact symbol key legend ────────────────────────────────── */}
@@ -1197,16 +1415,16 @@ export const VitalSignsChart = ({
                   alignItems: 'center',
                 }}
               >
-                {/* Scatter-plot symbols */}
+                {/* Scatter-plot symbols + SpO₂ strip line */}
                 {LEGEND_ITEMS.map(({ shape, param }) => {
                   const p = PARAMS[param];
                   return (
                     <Box key={param} sx={{ display: 'flex', alignItems: 'center', gap: '3px' }}>
-                      <svg width={12} height={12} viewBox="0 0 16 16" style={{ flexShrink: 0 }}>
+                      <svg width={16} height={16} viewBox="0 0 16 16" style={{ flexShrink: 0 }}>
                         <MiniSymbol shape={shape} color={p.color} />
                       </svg>
                       <Typography variant="caption" sx={{ fontSize: '0.65rem', color: 'text.secondary', lineHeight: 1.2 }}>
-                        {p.label}
+                        {p.label}{param === 'spo2' ? ' (strip)' : ''}
                       </Typography>
                     </Box>
                   );
@@ -1215,10 +1433,10 @@ export const VitalSignsChart = ({
                 {/* Thin separator */}
                 <Box sx={{ width: '1px', height: 12, backgroundColor: theme.palette.divider, mx: 0.25 }} />
 
-                {/* Text-row annotation indicators */}
+                {/* Grid row annotation indicators */}
                 {[
-                  { param: PARAMS.temp, label: 'Temp' },
-                  { param: PARAMS.o2,   label: 'O₂' },
+                  { param: PARAMS.temp,  label: 'Temp' },
+                  { param: PARAMS.o2,    label: 'O₂' },
                   { param: PARAMS.vapor, label: 'Vapor' },
                 ].map(({ param, label }) => (
                   <Box key={label} sx={{ display: 'flex', alignItems: 'center', gap: '3px' }}>
@@ -1230,6 +1448,23 @@ export const VitalSignsChart = ({
                         flexShrink: 0,
                       }}
                     />
+                    <Typography variant="caption" sx={{ fontSize: '0.65rem', color: 'text.secondary', lineHeight: 1.2 }}>
+                      {label}
+                    </Typography>
+                  </Box>
+                ))}
+
+                {/* Thin separator */}
+                <Box sx={{ width: '1px', height: 12, backgroundColor: theme.palette.divider, mx: 0.25 }} />
+
+                {/* Range status color legend */}
+                {[
+                  { color: '#4CAF50', label: 'Normal' },
+                  { color: '#FF9800', label: 'Warning (<95%)' },
+                  { color: '#F44336', label: 'Critical (<90%)' },
+                ].map(({ color, label }) => (
+                  <Box key={label} sx={{ display: 'flex', alignItems: 'center', gap: '3px' }}>
+                    <Box sx={{ width: 8, height: 8, borderRadius: '50%', backgroundColor: color, flexShrink: 0 }} />
                     <Typography variant="caption" sx={{ fontSize: '0.65rem', color: 'text.secondary', lineHeight: 1.2 }}>
                       {label}
                     </Typography>

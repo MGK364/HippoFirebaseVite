@@ -224,49 +224,64 @@ export const deletePatient = async (patientId: string): Promise<void> => {
 };
 
 // Mock vital signs for development
+// Generates a realistic 2-hour anesthesia procedure at 5-minute intervals.
+// Temperature is recorded every 15 min (0 = sentinel for "not recorded this interval").
+// SpO₂ dips briefly to 94% around T-65 to simulate a clinically relevant desaturation event.
 const createMockVitalSigns = (patientId: string): VitalSign[] => {
-  // Generate mock data points every 15 minutes for the past hour
   const now = new Date();
-  const vitalSigns: VitalSign[] = [];
-  
-  for (let i = 0; i < 5; i++) {
-    // Time: 60 minutes ago to now, in 15-minute increments
-    const timestamp = new Date(now.getTime() - (60 - i * 15) * 60000);
-    
-    // Generate vital sign values with some random fluctuation
-    const baseHR = 80 + Math.floor(Math.random() * 20); // Heart rate around 80-100
-    const baseRR = 15 + Math.floor(Math.random() * 10); // Respiratory rate around 15-25
-    const baseSP = 120 + Math.floor(Math.random() * 20); // Systolic around 120-140
-    const baseDP = 70 + Math.floor(Math.random() * 15); // Diastolic around 70-85
-    const baseTemp = 38 + (Math.random() * 0.5); // Temp around 38-38.5
-    const baseO2 = 95 + Math.floor(Math.random() * 5); // O2 sat around 95-100
-    const baseEtCO2 = 35 + Math.floor(Math.random() * 10); // ETCO2 around 35-45
-    const baseO2Flow = 1.0 + Math.round(Math.random() * 10) / 10; // O2 flow 1.0-2.0 L/min
-    const baseVapPct = 1.5 + Math.round(Math.random() * 10) / 10; // Vaporizer 1.5-2.5%
 
-    vitalSigns.push({
-      id: `vs-${patientId}-${i+1}`,
+  // Each row: [minOffset, hr, rr, sysBP, diaBP, spo2, etco2, tempC, o2Flow, vapPct]
+  // tempC = 0 → not recorded this interval (filtered in chart)
+  // Readings span T-120 min (induction) → T-0 min (current)
+  const DATA: [number, number, number, number, number, number, number, number, number, number][] = [
+    // min   HR   RR  SBP  DBP  SpO2 ETCO2 Temp   O2    Vap
+    [ 120,   85,  16, 128,  78,  100,  40, 38.4,  1.5,  2.0 ], // induction
+    [ 115,   80,  14, 122,  75,  100,  41,    0,  1.5,  2.0 ],
+    [ 110,   76,  13, 118,  72,  100,  42,    0,  1.5,  2.0 ],
+    [ 105,   78,  14, 120,  74,  100,  41, 38.3,  1.5,  2.0 ], // 15-min temp
+    [ 100,   75,  13, 116,  70,  100,  40,    0,  1.5,  2.0 ],
+    [  95,   77,  14, 118,  72,  100,  41,    0,  1.5,  2.0 ],
+    [  90,   79,  15, 120,  74,  100,  42, 38.2,  1.5,  2.0 ], // 15-min temp
+    [  85,   76,  13, 115,  70,  100,  40,    0,  1.5,  1.8 ],
+    [  80,   74,  13, 113,  68,  100,  40,    0,  1.5,  1.8 ],
+    [  75,   78,  14, 116,  72,  100,  41, 38.2,  1.5,  1.8 ], // 15-min temp
+    [  70,   79,  14, 116,  72,  100,  42,    0,  1.5,  1.8 ],
+    [  65,   78,  14, 115,  70,  100,  41,    0,  1.5,  1.8 ],
+    [  60,   77,  14, 116,  70,  100,  41, 38.1,  1.5,  2.0 ], // 15-min temp
+    [  55,   78,  14, 116,  70,  100,  41,    0,  2.0,  2.0 ],
+    [  50,   80,  14, 115,  70,  100,  40,    0,  2.0,  1.8 ],
+    [  45,   78,  13, 114,  68,  100,  40, 38.1,  2.0,  1.8 ], // 15-min temp
+    [  40,   76,  13, 113,  68,  100,  40,    0,  2.0,  1.8 ],
+    [  35,   75,  14, 114,  70,  100,  39,    0,  2.0,  1.8 ],
+    [  30,   77,  14, 116,  70,  100,  40, 38.0,  2.0,  1.5 ], // 15-min temp; vapor ↓
+    [  25,   79,  15, 118,  72,  100,  41,    0,  2.0,  1.5 ],
+    [  20,   80,  15, 120,  74,  100,  40,    0,  1.5,  1.5 ], // surgery closing
+    [  15,   82,  16, 122,  76,  100,  39, 38.0,  1.5,  1.2 ], // 15-min temp; vapor ↓
+    [  10,   85,  17, 124,  78,  100,  38,    0,  1.5,  1.0 ], // lightening plane
+    [   5,   88,  18, 126,  80,  100,  37,    0,  1.5,  0.5 ], // near extubation
+    [   0,   92,  20, 130,  82,  100,  36, 38.1,  1.0,  0.0 ], // last reading / wake-up
+  ];
+
+  return DATA.map(([minOffset, hr, rr, sbp, dbp, spo2, etco2, tempC, o2Flow, vapPct], i) => {
+    const timestamp = new Date(now.getTime() - minOffset * 60000);
+    const map = Math.round((sbp + 2 * dbp) / 3);
+    return {
+      id: `vs-${patientId}-${i + 1}`,
       timestamp,
-      temperature: parseFloat(baseTemp.toFixed(1)),
-      heartRate: baseHR,
-      respiratoryRate: baseRR,
-      bloodPressure: {
-        systolic: baseSP,
-        diastolic: baseDP,
-        mean: Math.round((baseSP + 2 * baseDP) / 3) // Calculate MAP
-      },
-      oxygenSaturation: baseO2,
-      etCO2: baseEtCO2,
-      notes: i === 0 ? 'Initial assessment' : '',
-      o2FlowRate: baseO2Flow,
+      temperature: tempC,           // 0 = not recorded this interval
+      heartRate: hr,
+      respiratoryRate: rr,
+      bloodPressure: { systolic: sbp, diastolic: dbp, mean: map },
+      oxygenSaturation: spo2,
+      etCO2: etco2,
+      notes: i === 0 ? 'Induction complete, intubated uneventfully.' : '',
+      o2FlowRate: o2Flow,
       vaporizerAgent: 'Iso' as const,
-      vaporizerPercent: baseVapPct,
-      createdAt: timestamp,        // same as clinical time → always >30 min old → locked
+      vaporizerPercent: vapPct,
+      createdAt: timestamp,          // all mock records pre-date edit window → locked
       createdBy: 'Mock System',
-    });
-  }
-  
-  return vitalSigns;
+    };
+  });
 };
 
 // Get vital signs for a patient
@@ -469,7 +484,7 @@ const createMockMedications = (patientId: string): Medication[] => {
       frequency: 'Once',
       timestamp: new Date(now.getTime() - 60 * 60000), // 1 hour ago
       administered: true,
-      administeredBy: 'Dr. Smith'
+      administeredBy: ''
     },
     {
       id: `med-${patientId}-2`,
@@ -479,7 +494,7 @@ const createMockMedications = (patientId: string): Medication[] => {
       frequency: 'Continuous',
       timestamp: new Date(now.getTime() - 55 * 60000), // 55 minutes ago
       administered: true,
-      administeredBy: 'Dr. Smith'
+      administeredBy: ''
     },
     {
       id: `med-${patientId}-3`,
@@ -489,7 +504,7 @@ const createMockMedications = (patientId: string): Medication[] => {
       frequency: 'PRN',
       timestamp: new Date(now.getTime() - 30 * 60000), // 30 minutes ago
       administered: true,
-      administeredBy: 'Dr. Johnson'
+      administeredBy: ''
     },
     {
       id: `med-${patientId}-4`,
@@ -711,8 +726,7 @@ const createMockAnesthesiaBoluses = (patientId: string): AnesthesiaBolus[] => {
   // Create boluses starting from 60 minutes ago
   // Match with the timeframe of vital signs (createMockVitalSigns creates data every 15 minutes)
   const bolusNames = ['Propofol', 'Ketamine', 'Hydromorphone', 'Midazolam', 'Atropine'];
-  const adminNames = ['Dr. Smith', 'Dr. Johnson', 'Dr. Williams'];
-  
+
   // Induction dose at beginning
   boluses.push({
     id: `bolus-${patientId}-1`,
@@ -720,9 +734,9 @@ const createMockAnesthesiaBoluses = (patientId: string): AnesthesiaBolus[] => {
     dose: 4.0,
     unit: 'mg/kg',
     timestamp: new Date(now.getTime() - 60 * 60000), // 60 minutes ago
-    administeredBy: adminNames[0]
+    administeredBy: ''
   });
-  
+
   // Ketamine for initial analgesia
   boluses.push({
     id: `bolus-${patientId}-2`,
@@ -730,9 +744,9 @@ const createMockAnesthesiaBoluses = (patientId: string): AnesthesiaBolus[] => {
     dose: 2.0,
     unit: 'mg/kg',
     timestamp: new Date(now.getTime() - 59 * 60000), // 59 minutes ago
-    administeredBy: adminNames[0]
+    administeredBy: ''
   });
-  
+
   // Hydromorphone for analgesia
   boluses.push({
     id: `bolus-${patientId}-3`,
@@ -740,22 +754,21 @@ const createMockAnesthesiaBoluses = (patientId: string): AnesthesiaBolus[] => {
     dose: 0.1,
     unit: 'mg/kg',
     timestamp: new Date(now.getTime() - 58 * 60000), // 58 minutes ago
-    administeredBy: adminNames[0]
+    administeredBy: ''
   });
-  
+
   // Add some additional boluses during the procedure
   for (let i = 4; i <= 8; i++) {
     const timeOffset = Math.floor(Math.random() * 50) + 5; // Random time between 5-55 minutes ago
     const nameIndex = Math.floor(Math.random() * bolusNames.length);
-    const adminIndex = Math.floor(Math.random() * adminNames.length);
-    
+
     boluses.push({
       id: `bolus-${patientId}-${i}`,
       name: bolusNames[nameIndex],
       dose: Math.round((Math.random() * 2 + 0.5) * 10) / 10, // Random dose between 0.5-2.5
       unit: nameIndex === 0 ? 'mg/kg' : nameIndex === 4 ? 'mg' : 'mg/kg',
       timestamp: new Date(now.getTime() - timeOffset * 60000),
-      administeredBy: adminNames[adminIndex]
+      administeredBy: ''
     });
   }
   
@@ -767,8 +780,7 @@ const createMockAnesthesiaBoluses = (patientId: string): AnesthesiaBolus[] => {
 const createMockAnesthesiaCRIs = (patientId: string): AnesthesiaCRI[] => {
   const now = new Date();
   const cris: AnesthesiaCRI[] = [];
-  const adminNames = ['Dr. Smith', 'Dr. Johnson', 'Dr. Williams'];
-  
+
   // Ketamine CRI - started at beginning and still running
   const ketamineCRI: AnesthesiaCRI = {
     id: `cri-${patientId}-1`,
@@ -776,7 +788,7 @@ const createMockAnesthesiaCRIs = (patientId: string): AnesthesiaCRI[] => {
     rate: 10,
     unit: 'mcg/kg/min',
     startTime: new Date(now.getTime() - 60 * 60000), // Started 60 minutes ago
-    administeredBy: adminNames[0],
+    administeredBy: '',
     rateHistory: [
       {
         timestamp: new Date(now.getTime() - 60 * 60000),
@@ -801,7 +813,7 @@ const createMockAnesthesiaCRIs = (patientId: string): AnesthesiaCRI[] => {
     rate: 50,
     unit: 'mcg/kg/min',
     startTime: new Date(now.getTime() - 55 * 60000), // Started 55 minutes ago
-    administeredBy: adminNames[1],
+    administeredBy: '',
     rateHistory: [
       {
         timestamp: new Date(now.getTime() - 55 * 60000),
@@ -819,7 +831,7 @@ const createMockAnesthesiaCRIs = (patientId: string): AnesthesiaCRI[] => {
     unit: 'mg/kg/hr',
     startTime: new Date(now.getTime() - 50 * 60000), // Started 50 minutes ago
     endTime: new Date(now.getTime() - 20 * 60000), // Ended 20 minutes ago
-    administeredBy: adminNames[0],
+    administeredBy: '',
     rateHistory: [
       {
         timestamp: new Date(now.getTime() - 50 * 60000),
@@ -844,7 +856,7 @@ const createMockAnesthesiaCRIs = (patientId: string): AnesthesiaCRI[] => {
     rate: 10,
     unit: 'mL/kg/hr',
     startTime: new Date(now.getTime() - 58 * 60000), // Started 58 minutes ago
-    administeredBy: adminNames[2],
+    administeredBy: '',
     rateHistory: [
       {
         timestamp: new Date(now.getTime() - 58 * 60000),
@@ -865,7 +877,7 @@ const createMockAnesthesiaCRIs = (patientId: string): AnesthesiaCRI[] => {
     rate: 5,
     unit: 'mcg/kg/hr',
     startTime: new Date(now.getTime() - 25 * 60000), // Started 25 minutes ago
-    administeredBy: adminNames[0],
+    administeredBy: '',
     rateHistory: [
       {
         timestamp: new Date(now.getTime() - 25 * 60000),
@@ -1157,7 +1169,7 @@ const createMockMedicalSummary = (patientId: string): MedicalSummary => {
     cpr: true,
     clientAuth: true,
     lastUpdated: new Date(),
-    updatedBy: 'Dr. Smith'
+    updatedBy: ''
   };
 };
 
@@ -1337,13 +1349,51 @@ const createMockAnesthesiaPlan = (patientId: string): AnesthesiaPlan => {
   };
 };
 
+// Mock procedure events aligned with the 2-hour mock vital signs timeline.
+// These are shown as reference lines on the chart.  Users can delete them;
+// deletion is honoured via devCache.deletedEvents.
+const createMockEvents = (patientId: string): Event[] => {
+  const now = new Date();
+  return [
+    {
+      id: `ev-${patientId}-mock-1`,
+      timestamp: new Date(now.getTime() - 118 * 60000), // T-118 min
+      type: 'Checkpoint',
+      title: 'Induction',
+      details: 'Propofol 4 mg/kg IV. ET tube 10 mm. Intubated uneventfully.',
+      color: '#7B1FA2',
+      createdBy: '',
+    },
+    {
+      id: `ev-${patientId}-mock-2`,
+      timestamp: new Date(now.getTime() - 100 * 60000), // T-100 min
+      type: 'Checkpoint',
+      title: 'Surgery Start',
+      details: 'Exploratory laparotomy commenced.',
+      color: '#1565C0',
+      createdBy: '',
+    },
+    {
+      id: `ev-${patientId}-mock-3`,
+      timestamp: new Date(now.getTime() - 20 * 60000), // T-20 min
+      type: 'Checkpoint',
+      title: 'Surgery End',
+      details: 'Closure complete. Vaporizer being tapered.',
+      color: '#1565C0',
+      createdBy: '',
+    },
+  ];
+};
+
 // Get events for a patient
 export const getEvents = async (patientId: string): Promise<Event[]> => {
   if (DEVELOPMENT_MODE) {
-    // Return cached events (no mock events generated — users add them via Log Event)
+    const mockEvents = createMockEvents(patientId);
     const cached = cacheGet(devCache.events, patientId);
     const deleted = devCache.deletedEvents.get(patientId) ?? new Set();
-    return cached.filter(e => !deleted.has(e.id)).sort((a, b) => a.timestamp.getTime() - b.timestamp.getTime());
+    // Merge mock events with user-added cached events; respect deletions
+    const all = [...mockEvents, ...cached].filter(e => !deleted.has(e.id));
+    return all.sort((a, b) => a.timestamp.getTime() - b.timestamp.getTime());
   }
   
   try {

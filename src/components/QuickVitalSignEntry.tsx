@@ -215,25 +215,26 @@ export const QuickVitalSignEntry: React.FC<QuickVitalSignEntryProps> = ({
     setError('');
     setShowSuccess(false);
 
-    // Validate required fields BEFORE setting loading (fixes loading-stuck bug)
-    if (!temperature || !heartRate || !respiratoryRate || !systolic || !diastolic) {
-      setError('Required: Temp, HR, RR, Sys, Dia');
+    // Only one field needs to be filled — reject completely empty submissions
+    const hasAnyVital = temperature || heartRate || respiratoryRate || systolic || diastolic
+      || meanPressure || oxygenSaturation || etCO2 || o2FlowRate || vaporizerPercent;
+    if (!hasAnyVital) {
+      setError('Enter at least one value');
       return;
     }
 
     try {
       setLoading(true);
 
-      const tempC = fahrenheitToCelsius(parseFloat(temperature));
-
+      // Use 0 as sentinel for "not recorded this reading" — chart filters these out
       const newVitalSign: Omit<VitalSign, 'id'> = {
         timestamp: new Date(timestamp),
-        temperature: tempC,
-        heartRate: parseInt(heartRate),
-        respiratoryRate: parseInt(respiratoryRate),
+        temperature: temperature ? fahrenheitToCelsius(parseFloat(temperature)) : 0,
+        heartRate: heartRate ? parseInt(heartRate) : 0,
+        respiratoryRate: respiratoryRate ? parseInt(respiratoryRate) : 0,
         bloodPressure: {
-          systolic: parseInt(systolic),
-          diastolic: parseInt(diastolic),
+          systolic: systolic ? parseInt(systolic) : 0,
+          diastolic: diastolic ? parseInt(diastolic) : 0,
           mean: meanPressure ? parseInt(meanPressure) : null,
         },
         oxygenSaturation: oxygenSaturation ? parseInt(oxygenSaturation) : 0,
@@ -333,7 +334,7 @@ export const QuickVitalSignEntry: React.FC<QuickVitalSignEntryProps> = ({
         {/* Left: two-row field grid */}
         <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 0.75 }}>
 
-          {/* Row 1 — Required + primary vitals */}
+          {/* Row 1 — Primary vitals (Time · HR · RR · Sys BP · Dia BP · MAP · SpO₂ · EtCO₂ · Temp) */}
           <Box sx={{ display: 'flex', gap: 1, alignItems: 'flex-end', flexWrap: 'wrap' }}>
             <FieldStack label="Time" width={152}>
               <TextField
@@ -350,23 +351,8 @@ export const QuickVitalSignEntry: React.FC<QuickVitalSignEntryProps> = ({
               />
             </FieldStack>
 
-            {(() => { const f = getFieldIndicators('temperature', prevValues?.temperature, '101'); return (
-            <FieldStack label="Temp °F" width={76} required status={f.status} tooltip={f.tooltip}>
-              <NumberTextField
-                size="small"
-                type="number"
-                value={temperature}
-                onChange={(e) => setTemperature(e.target.value)}
-                slotProps={{ htmlInput: { step: 0.1, min: 95, max: 107, ...compactNumberProps } }}
-                placeholder={f.placeholder}
-                error={!!error && !temperature}
-                sx={f.sx}
-                fullWidth
-              />
-            </FieldStack>); })()}
-
             {(() => { const f = getFieldIndicators('heartRate', prevValues?.heartRate, 'bpm'); return (
-            <FieldStack label="HR" width={68} required status={f.status} tooltip={f.tooltip}>
+            <FieldStack label="HR" width={68} status={f.status} tooltip={f.tooltip}>
               <NumberTextField
                 size="small"
                 type="number"
@@ -374,14 +360,13 @@ export const QuickVitalSignEntry: React.FC<QuickVitalSignEntryProps> = ({
                 onChange={(e) => setHeartRate(e.target.value)}
                 slotProps={{ htmlInput: { step: 1, min: 20, max: 300, ...compactNumberProps } }}
                 placeholder={f.placeholder}
-                error={!!error && !heartRate}
                 sx={f.sx}
                 fullWidth
               />
             </FieldStack>); })()}
 
             {(() => { const f = getFieldIndicators('respiratoryRate', prevValues?.respiratoryRate, 'bpm'); return (
-            <FieldStack label="RR" width={68} required status={f.status} tooltip={f.tooltip}>
+            <FieldStack label="RR" width={68} status={f.status} tooltip={f.tooltip}>
               <NumberTextField
                 size="small"
                 type="number"
@@ -389,14 +374,13 @@ export const QuickVitalSignEntry: React.FC<QuickVitalSignEntryProps> = ({
                 onChange={(e) => setRespiratoryRate(e.target.value)}
                 slotProps={{ htmlInput: { step: 1, min: 5, max: 100, ...compactNumberProps } }}
                 placeholder={f.placeholder}
-                error={!!error && !respiratoryRate}
                 sx={f.sx}
                 fullWidth
               />
             </FieldStack>); })()}
 
             {(() => { const f = getFieldIndicators('systolic', prevValues?.systolic, 'mmHg'); return (
-            <FieldStack label="Sys BP" width={72} required status={f.status} tooltip={f.tooltip}>
+            <FieldStack label="Sys BP" width={72} status={f.status} tooltip={f.tooltip}>
               <NumberTextField
                 size="small"
                 type="number"
@@ -404,14 +388,13 @@ export const QuickVitalSignEntry: React.FC<QuickVitalSignEntryProps> = ({
                 onChange={(e) => setSystolic(e.target.value)}
                 slotProps={{ htmlInput: { step: 1, min: 60, max: 300, ...compactNumberProps } }}
                 placeholder={f.placeholder}
-                error={!!error && !systolic}
                 sx={f.sx}
                 fullWidth
               />
             </FieldStack>); })()}
 
             {(() => { const f = getFieldIndicators('diastolic', prevValues?.diastolic, 'mmHg'); return (
-            <FieldStack label="Dia BP" width={72} required status={f.status} tooltip={f.tooltip}>
+            <FieldStack label="Dia BP" width={72} status={f.status} tooltip={f.tooltip}>
               <NumberTextField
                 size="small"
                 type="number"
@@ -419,7 +402,6 @@ export const QuickVitalSignEntry: React.FC<QuickVitalSignEntryProps> = ({
                 onChange={(e) => setDiastolic(e.target.value)}
                 slotProps={{ htmlInput: { step: 1, min: 30, max: 200, ...compactNumberProps } }}
                 placeholder={f.placeholder}
-                error={!!error && !diastolic}
                 sx={f.sx}
                 fullWidth
               />
@@ -461,6 +443,20 @@ export const QuickVitalSignEntry: React.FC<QuickVitalSignEntryProps> = ({
                 value={etCO2}
                 onChange={(e) => setEtCO2(e.target.value)}
                 slotProps={{ htmlInput: { step: 1, min: 20, max: 80, ...compactNumberProps } }}
+                placeholder={f.placeholder}
+                sx={f.sx}
+                fullWidth
+              />
+            </FieldStack>); })()}
+
+            {(() => { const f = getFieldIndicators('temperature', prevValues?.temperature, '101'); return (
+            <FieldStack label="Temp °F" width={76} status={f.status} tooltip={f.tooltip}>
+              <NumberTextField
+                size="small"
+                type="number"
+                value={temperature}
+                onChange={(e) => setTemperature(e.target.value)}
+                slotProps={{ htmlInput: { step: 0.1, min: 95, max: 107, ...compactNumberProps } }}
                 placeholder={f.placeholder}
                 sx={f.sx}
                 fullWidth

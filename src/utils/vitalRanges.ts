@@ -195,10 +195,12 @@ export function getRangeUnit(param: VitalParam): string {
 
 /**
  * Return a short normal-range string for display in tooltips.
- * e.g. "60\u201320 bpm"
+ * e.g. "60–120 bpm"
  */
 export function getNormalRangeStr(param: VitalParam, species: string | undefined): string {
-  const { warnLow, warnHigh } = getRangeDef(param, species);
+  const def = getRangeDef(param, species);
+  if (!def) return '\u2014';
+  const { warnLow, warnHigh } = def;
   const unit = getRangeUnit(param);
   if (warnLow !== null && warnHigh !== null) return `${warnLow}\u2013${warnHigh} ${unit}`;
   if (warnLow !== null)                      return `>${warnLow} ${unit}`;
